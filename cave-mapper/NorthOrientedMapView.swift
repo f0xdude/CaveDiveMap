@@ -53,6 +53,12 @@ struct NorthOrientedMapView: View {
             }
             .contentShape(Rectangle())
             .gesture(combinedGesture())
+            // Overlay the compass in the top-right.
+            .overlay(
+                CompassView(mapRotation: rotation + gestureRotation)
+                    .padding(10),
+                alignment: .topTrailing
+            )
         }
         .navigationTitle("Map Viewer")
         .onAppear {
@@ -242,7 +248,7 @@ struct NorthOrientedMapView: View {
         var angles: [Double] = []
         var currentPosition = center
         path.move(to: currentPosition)
-        for data in mapData {
+        for data in mapData where data.rtype == "manual" {  // <-- filter for "manual"
             let angle = data.heading.toMathRadiansFromHeading()
             angles.append(angle)
             let deltaX = conversionFactor * CGFloat(data.distance * cos(angle))
@@ -254,11 +260,35 @@ struct NorthOrientedMapView: View {
         }
         return (path, positions, angles)
     }
+
 }
 
 private extension Double {
     func toMathRadiansFromHeading() -> Double {
         return (90.0 - self) * .pi / 180.0
+    }
+}
+
+/// A simple compass view that displays a circle with an arrow.
+/// The arrow rotates (in the opposite direction of the map rotation)
+/// so that it always points toward north.
+struct CompassView: View {
+    let mapRotation: Angle
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.8))
+                .frame(width: 50, height: 50)
+                .shadow(radius: 3)
+            Image(systemName: "location.north.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 30, height: 30)
+                .foregroundColor(.red)
+                // Rotate the arrow to counteract the map's rotation.
+                .rotationEffect(-mapRotation)
+        }
     }
 }
 

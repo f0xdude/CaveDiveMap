@@ -80,23 +80,23 @@ struct ContentView: View {
                     Divider()
                     
                     // Debugging: Display Magnetic Field Strength.
-                    VStack(alignment: .leading) {
-                        Text("Magnetic Field Strength (µT):")
-                            .font(.headline)
-                        
-                        HStack {
-                            Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
-                                .monospacedDigit()
-                            Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
-                                .monospacedDigit()
-                            Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
-                                .monospacedDigit()
-                        }
-                        
-                        Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
-                            .monospacedDigit()
-                    }
-                    .padding()
+//                    VStack(alignment: .leading) {
+//                        Text("Magnetic Field Strength (µT):")
+//                            .font(.headline)
+//                        
+//                        HStack {
+//                            Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
+//                                .monospacedDigit()
+//                            Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
+//                                .monospacedDigit()
+//                            Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
+//                                .monospacedDigit()
+//                        }
+//                        
+//                        Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
+//                            .monospacedDigit()
+//                    }
+//                    .padding()
                     
                     Spacer() // Push content up to leave space for the buttons at the bottom
                     
@@ -119,6 +119,8 @@ struct ContentView: View {
                         // Navigation button to show a north-oriented map.
                         NavigationLink {
                             NorthOrientedMapView()
+                            
+                            
                         } label: {
                             ZStack {
                                 Circle()

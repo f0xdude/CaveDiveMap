@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var viewModel: MagnetometerViewModel
+    @StateObject private var magnetometer = MagnetometerViewModel()
+
     
     // NumberFormatter to handle decimal input.
     private var numberFormatter: NumberFormatter {
@@ -103,7 +105,6 @@ struct SettingsView: View {
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
                     }
-                    Text("Needed to accurately calculate distance")
                 }
                 
                 // MARK: - Reset Section
@@ -113,6 +114,40 @@ struct SettingsView: View {
                             .foregroundColor(.red)
                     }
                 }
+                
+                
+                .onAppear {
+                    magnetometer.startMonitoring()
+                    UIApplication.shared.isIdleTimerDisabled = true // Prevent screen from sleeping.
+                }
+                .onDisappear {
+                    magnetometer.stopMonitoring()
+                    UIApplication.shared.isIdleTimerDisabled = false // Allow screen to sleep again.
+                }
+                
+                
+                Divider()
+                
+                // Debugging: Display Magnetic Field Strength.
+                VStack(alignment: .leading) {
+                    Text("Magnetic Field Strength (µT):")
+                        .font(.headline)
+                    
+                    HStack {
+                        Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
+                            .monospacedDigit()
+                        Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
+                            .monospacedDigit()
+                        Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
+                            .monospacedDigit()
+                    }
+                    
+                    Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
+                        .monospacedDigit()
+                }
+                .padding()
+                
+                
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
