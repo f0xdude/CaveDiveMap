@@ -18,3 +18,6 @@ Credits: Code entirely written by ChatGPT. I don't code on SWIFT language or IOS
 
 STL files for the measurement wheel available at:
 https://www.thingiverse.com/thing:6950056
+
+Dive Case I use for iphone 15:
+https://hz.aliexpress.com/i/1005005277943648.html?src=google&albch=search&acnt=479-062-3723&isdl=y&aff_short_key=UneMJZVf&albcp=266121556&albag=7593673036&slnk=&trgt=dsa-42862830006&plac=&crea=426823514858&albad=426823514858&netw=g&device=c&mtctp=&memo1=&albbt=Google_7_search&aff_platform=google&albagn=888888&isSmbActive=false&isSmbAutoCall=false&needSmbHouyi=false&gad_source=1&gclid=CjwKCAiAtsa9BhAKEiwAUZAszdImIvknDFVuMjy0B4ktC4mgl3NdYCsqJR2yrvNp2XDpOteMqIDGphoCJgsQAvD_BwE
