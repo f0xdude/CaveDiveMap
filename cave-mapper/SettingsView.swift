@@ -4,7 +4,6 @@ struct SettingsView: View {
     @ObservedObject var viewModel: MagnetometerViewModel
     @StateObject private var magnetometer = MagnetometerViewModel()
 
-    
     // NumberFormatter to handle decimal input.
     private var numberFormatter: NumberFormatter {
         let formatter = NumberFormatter()
@@ -65,94 +64,97 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                // MARK: - Calibration Section
-                Section(header: Text("Calibration")) {
-                    HStack {
-                        Text("Low Threshold")
-                        Spacer()
-                        // Editable TextField to display and edit the low threshold.
-                        TextField("Low Threshold", text: lowThresholdString)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
+            ZStack {
+                // Background view to catch taps and dismiss the keyboard.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hideKeyboard()
+                    }
+                
+                Form {
+                    // MARK: - Calibration Section
+                    Section(header: Text("Calibration")) {
+                        HStack {
+                            Text("Low Threshold")
+                            Spacer()
+                            TextField("Low Threshold", text: lowThresholdString)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
+                        
+                        HStack {
+                            Text("High Threshold")
+                            Spacer()
+                            TextField("High Threshold", text: highThresholdString)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
+                        
+                        Button(action: {
+                            viewModel.runManualCalibration()
+                        }) {
+                            Text("Detect Automatically")
+                        }
                     }
                     
-                    HStack {
-                        Text("High Threshold")
-                        Spacer()
-                        // Editable TextField to display and edit the high threshold.
-                        TextField("High Threshold", text: highThresholdString)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
+                    // MARK: - Wheel Settings Section
+                    Section(header: Text("Wheel Settings")) {
+                        HStack {
+                            Text("Wheel Radius (cm)")
+                            Spacer()
+                            TextField("7", text: wheelRadiusString)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
                     }
                     
-                    Button(action: {
-                        viewModel.runManualCalibration()
-                    }) {
-                        Text("Run Calibration Manually")
+                    // MARK: - Reset Section
+                    Section {
+                        Button(action: viewModel.resetToDefaults) {
+                            Text("Reset to Defaults")
+                                .foregroundColor(.red)
+                        }
                     }
-                }
-                
-                // MARK: - Wheel Settings Section
-                Section(header: Text("Wheel Settings")) {
-                    HStack {
-                        Text("Wheel Radius (cm)")
-                        Spacer()
-                        TextField("7", text: wheelRadiusString)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                    }
-                }
-                
-                // MARK: - Reset Section
-                Section {
-                    Button(action: viewModel.resetToDefaults) {
-                        Text("Reset to Defaults")
-                            .foregroundColor(.red)
-                    }
-                }
-                
-                
-                .onAppear {
-                    magnetometer.startMonitoring()
-                    UIApplication.shared.isIdleTimerDisabled = true // Prevent screen from sleeping.
-                }
-                .onDisappear {
-                    magnetometer.stopMonitoring()
-                    UIApplication.shared.isIdleTimerDisabled = false // Allow screen to sleep again.
-                }
-                
-                
-                Divider()
-                
-                // Debugging: Display Magnetic Field Strength.
-                VStack(alignment: .leading) {
-                    Text("Magnetic Field Strength (µT):")
-                        .font(.headline)
                     
-                    HStack {
-                        Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
-                            .monospacedDigit()
-                        Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
-                            .monospacedDigit()
-                        Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
+                    // Debugging: Display Magnetic Field Strength.
+                    VStack(alignment: .leading) {
+                        Text("Magnetic Field Strength (µT):")
+                            .font(.headline)
+                        
+                        HStack {
+                            Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
+                                .monospacedDigit()
+                            Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
+                                .monospacedDigit()
+                            Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
+                                .monospacedDigit()
+                        }
+                        
+                        Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
                             .monospacedDigit()
                     }
+                    .padding()
                     
-                    Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
-                        .monospacedDigit()
+                    // MARK: - About App Section
+                    Section {
+                        Link("About App", destination: URL(string: "https://example.com")!)
+                            .foregroundColor(.blue)
+                    }
                 }
-                .padding()
-                
-                
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .onTapGesture {
-                hideKeyboard()
+            .onAppear {
+                magnetometer.startMonitoring()
+                UIApplication.shared.isIdleTimerDisabled = true // Prevent screen from sleeping.
+            }
+            .onDisappear {
+                magnetometer.stopMonitoring()
+                UIApplication.shared.isIdleTimerDisabled = false // Allow screen to sleep again.
             }
         }
     }

@@ -15,8 +15,22 @@ There is also option to view a live map for reference during the dive.
 
 Credits: Code entirely written by ChatGPT. I don't code on SWIFT language or IOS.
 
+The device:
+The app requires a 3d printed device which is attached to an iphone dive case.
+The device contains the measuring wheel and guideline clamp mechanism.
 
-STL files for the measurement wheel available at:
+My goals for the device:
+I wanted the device to be fully 3d printable, so you can make it in any place where there is a 3d printer available. 
+No springs or screws, nuts or other hardware required.
+
+
+Currently, only non 3d printed parts needed are:
+- Rubber band for keeping the slider gate clamped down/tensioned on the cave line.
+- small magnet 8mm in diameter. ( available in hardware stores )
+If you have a bigger magnet, you can drill out the hole bigger or melt it or glue it on the wheel whatever works.
+
+
+STL files for the measurement wheel device available at:
 https://www.thingiverse.com/thing:6950056
 
 Dive Case I use for iphone 15:

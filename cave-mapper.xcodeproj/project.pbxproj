@@ -16,6 +16,7 @@
 		9852A6272CEBBBE0000C2A15 /* cave_mapperUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */; };
 		9852A6292CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */; };
 		987B59CD2CEBF3A400B62DCC /* MagnetometerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */; };
+		9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9886EDD02D63E61A00EF570D /* CameraView.swift */; };
 		989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57632CED22B700E46076 /* NorthOrientedMapView.swift */; };
 		989B57672CEE504500E46076 /* SaveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57662CEE504500E46076 /* SaveDataView.swift */; };
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
@@ -51,6 +52,7 @@
 		9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITests.swift; sourceTree = "<group>"; };
 		9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MagnetometerViewModel.swift; sourceTree = "<group>"; };
+		9886EDD02D63E61A00EF570D /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		989B57632CED22B700E46076 /* NorthOrientedMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorthOrientedMapView.swift; sourceTree = "<group>"; };
 		989B57652CED2B4B00E46076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		989B57662CEE504500E46076 /* SaveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveDataView.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
+				9886EDD02D63E61A00EF570D /* CameraView.swift */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
 				9852A60F2CEBBBE0000C2A15 /* Assets.xcassets */,
 				9852A6112CEBBBE0000C2A15 /* Preview Content */,
@@ -281,6 +284,7 @@
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
+				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

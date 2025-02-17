@@ -13,6 +13,9 @@ struct ContentView: View {
     // New state variables for save navigation and calibration toast.
     @State private var navigateToSaveDataView = false
     @State private var showCalibrationToast = false
+    
+    // New state variable for showing the camera view.
+    @State private var showCameraView = false
 
     var body: some View {
         NavigationStack {
@@ -36,7 +39,7 @@ struct ContentView: View {
                                 Text("Accuracy: \(heading.headingAccuracy, specifier: "%.2f")")
                                     .font(.largeTitle)
                                 Circle()
-                                    .fill(heading.headingAccuracy < 20 ? Color.green : Color.yellow)
+                                    .fill(heading.headingAccuracy < 20 ? Color.green : Color.red)
                                     .frame(width: 20, height: 20)
                             }
                         }
@@ -57,83 +60,14 @@ struct ContentView: View {
                     
                     Divider()
                     
-                    Text("Recorded points:")
-                        .font(.largeTitle)
-                    
+                    Text("Datapoints collected:")
                     Text("\(pointNumber)")
-                        .font(.largeTitle)
-                    
-                    // Indicator for magnetometer activity and calibration status.
-                    if magnetometer.isRunning {
-                        if magnetometer.isCalibrating {
-                            Text("Calibrating thresholds...")
-                                .foregroundColor(.orange)
-                        } else {
-                            Text("Detecting magnet...")
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        Text("Start the wheel to detect revolutions")
-                            .foregroundColor(.red)
-                    }
-                    
-                    Divider()
-                    
-                    // Debugging: Display Magnetic Field Strength.
-//                    VStack(alignment: .leading) {
-//                        Text("Magnetic Field Strength (µT):")
-//                            .font(.headline)
-//                        
-//                        HStack {
-//                            Text("X: \(magnetometer.currentField.x, specifier: "%.2f")")
-//                                .monospacedDigit()
-//                            Text("Y: \(magnetometer.currentField.y, specifier: "%.2f")")
-//                                .monospacedDigit()
-//                            Text("Z: \(magnetometer.currentField.z, specifier: "%.2f")")
-//                                .monospacedDigit()
-//                        }
-//                        
-//                        Text("Magnitude: \(magnetometer.currentMagnitude, specifier: "%.2f")")
-//                            .monospacedDigit()
-//                    }
-//                    .padding()
                     
                     Spacer() // Push content up to leave space for the buttons at the bottom
                     
                     // Bottom buttons
                     ZStack {
-                        // Reset button with a 3-second long-press requirement.
-                        ZStack {
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 70, height: 70)
-                            Text("Reset")
-                                .foregroundColor(.white)
-                                .bold()
-                        }
-                        .onLongPressGesture(minimumDuration: 3) {
-                            resetMonitoringData()
-                        }
-                        .padding(.bottom, 20)
-                        
-                        // Navigation button to show a north-oriented map.
-                        NavigationLink {
-                            NorthOrientedMapView()
-                            
-                            
-                        } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 50, height: 50)
-                                Image(systemName: "map.fill")
-                                    .foregroundColor(.white)
-                                    .font(.title2)
-                            }
-                        }
-                        .offset(x: 120, y: 10)
-                        
-                        // Save button: check heading accuracy before navigating.
+                        // --- Save Button ---
                         Button(action: {
                             // If there is a heading, check its accuracy.
                             if let heading = magnetometer.currentHeading, heading.headingAccuracy > 20 {
@@ -152,13 +86,58 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.green)
-                                    .frame(width: 50, height: 50)
+                                    .frame(width: 70, height: 70) // Increased to 70x70
                                 Image(systemName: "square.and.arrow.down.fill")
                                     .foregroundColor(.white)
                                     .font(.title2)
                             }
                         }
-                        .offset(x: -70, y: -80)
+                        .padding(.bottom, 20)
+                        
+                        // Navigation button to show a north-oriented map.
+                        NavigationLink {
+                            NorthOrientedMapView()
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 70, height: 70)
+                                Image(systemName: "map.fill")
+                                    .foregroundColor(.white)
+                                    .font(.title2)
+                            }
+                        }
+                        .offset(x: 130, y: 10)
+                        
+                        // --- Reset Button ---
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 70, height: 70) // Decreased to 50x50
+                            Text("Reset")
+                                .foregroundColor(.white)
+                                .bold()
+                        }
+                        .onLongPressGesture(minimumDuration: 3) {
+                            resetMonitoringData()
+                        }
+                        .offset(x: -70, y: -70)
+                        .padding(.bottom, 20)
+                        
+                        // --- New Camera Button ---
+                        Button(action: {
+                            showCameraView = true
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 70, height: 70)
+                                Image(systemName: "camera.fill")
+                                    .foregroundColor(.white)
+                                    .font(.title2)
+                            }
+                        }
+                        .offset(x: 70, y: -70)
                         .padding(.bottom, 20)
                     }
                     .padding(.bottom) // Adjust padding as needed
@@ -244,9 +223,18 @@ struct ContentView: View {
                     .animation(.easeInOut, value: showCalibrationToast)
                 }
             }
-            // New programmatic navigation using navigationDestination.
+            // Programmatic navigation for SaveDataView.
             .navigationDestination(isPresented: $navigateToSaveDataView) {
                 SaveDataView(magnetometer: magnetometer)
+            }
+            // Present the camera view when needed.
+            .fullScreenCover(isPresented: $showCameraView) {
+                CameraView(
+                    pointNumber: pointNumber,
+                    distance: magnetometer.distanceInMeters,
+                    heading: magnetometer.currentHeading?.trueHeading ?? 0,
+                    depth: 0.00
+                )
             }
         }
     }

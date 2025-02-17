@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreGraphics
 import CoreMotion
+import UIKit
 
 struct NorthOrientedMapView: View {
     @State private var mapData: [SavedData] = []
@@ -59,6 +60,28 @@ struct NorthOrientedMapView: View {
                     .padding(10),
                 alignment: .topTrailing
             )
+            // Overlay export share buttons at the bottom left.
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 20) {
+                    Button(action: { shareData() }) {
+                        ZStack {
+                            Circle().fill(Color.purple).frame(width: 50, height: 50)
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundColor(.white)
+                                .font(.title2)
+                        }
+                    }
+                    Button(action: { shareTherionData() }) {
+                        ZStack {
+                            Circle().fill(Color.gray).frame(width: 50, height: 50)
+                            Image(systemName: "doc.text")
+                                .foregroundColor(.white)
+                                .font(.title2)
+                        }
+                    }
+                }
+                .padding()
+            }
         }
         .navigationTitle("Map Viewer")
         .onAppear {
@@ -72,7 +95,8 @@ struct NorthOrientedMapView: View {
         }
     }
     
-    // Combine magnification, rotation, and drag gestures.
+    // MARK: - Gesture Handling
+    
     private func combinedGesture() -> some Gesture {
         let magnifyGesture = MagnificationGesture()
             .updating($gestureScale) { value, state, _ in
@@ -104,6 +128,8 @@ struct NorthOrientedMapView: View {
             dragGesture
         )
     }
+    
+    // MARK: - Cave Drawing
     
     /// Draws the cave profile as a closed polygon (built from left/right offsets)
     /// and overlays the center guide line with markers and labels.
@@ -248,7 +274,7 @@ struct NorthOrientedMapView: View {
         var angles: [Double] = []
         var currentPosition = center
         path.move(to: currentPosition)
-        for data in mapData where data.rtype == "manual" {  // <-- filter for "manual"
+        for data in mapData where data.rtype == "manual" {
             let angle = data.heading.toMathRadiansFromHeading()
             angles.append(angle)
             let deltaX = conversionFactor * CGFloat(data.distance * cos(angle))
@@ -260,7 +286,100 @@ struct NorthOrientedMapView: View {
         }
         return (path, positions, angles)
     }
-
+    
+    // MARK: - Export Data Functions
+    
+    private func shareData() {
+        let savedDataArray = DataManager.loadSavedData()
+        guard !savedDataArray.isEmpty else {
+            print("No data available to share.")
+            return
+        }
+        
+        var csvText = "RecordNumber,Distance,Heading,Depth,Left,Right,Up,Down,Type\n"
+        for data in savedDataArray {
+            csvText += "\(data.recordNumber),\(data.distance),\(data.heading),\(data.depth),\(data.left),\(data.right),\(data.up),\(data.down),\(data.rtype)\n"
+        }
+        
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("SavedData.csv")
+        
+        do {
+            try csvText.write(to: fileURL, atomically: true, encoding: .utf8)
+        } catch {
+            print("Failed to write CSV file: \(error.localizedDescription)")
+            return
+        }
+        
+        let activityViewController = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+            rootViewController.present(activityViewController, animated: true, completion: nil)
+        }
+    }
+    
+    private func shareTherionData() {
+        let manualDataArray = DataManager.loadSavedData()
+            .filter { $0.rtype == "manual" }
+            .sorted { $0.recordNumber < $1.recordNumber }
+        guard manualDataArray.count >= 2 else {
+            print("Not enough manual data available to share in Therion format.")
+            return
+        }
+        
+        var therionText = """
+        survey sump_1 -title "Sump 1"
+        centerline
+        team "PaldinCaveDivingGroup"
+        date 2024.2.26
+        calibrate depth 0 -1
+        units length depth meters
+        units compass degrees
+        data diving from to length compass depthchange left right up down
+        extend left
+        """
+        
+        therionText += "\n"
+        
+        for i in 0..<(manualDataArray.count - 1) {
+            let start = manualDataArray[i]
+            let end = manualDataArray[i + 1]
+            
+            let from = i
+            let to = i + 1
+            
+            let length = end.distance - start.distance
+            let compass = end.heading
+            let depthChange = end.depth - start.depth
+            let leftVal = end.left
+            let rightVal = end.right
+            let upVal = end.up
+            let downVal = end.down
+            
+            let line = "\(from) \(to) \(String(format: "%.1f", length)) \(Int(compass)) \(String(format: "%.1f", depthChange)) \(String(format: "%.1f", leftVal)) \(String(format: "%.1f", rightVal)) \(String(format: "%.1f", upVal)) \(String(format: "%.1f", downVal))\n"
+            therionText += line
+        }
+        
+        therionText += "endcenterline\nendsurvey"
+        
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("SavedData.thr")
+        
+        do {
+            try therionText.write(to: fileURL, atomically: true, encoding: .utf8)
+        } catch {
+            print("Failed to write Therion file: \(error.localizedDescription)")
+            return
+        }
+        
+        let activityViewController = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+            rootViewController.present(activityViewController, animated: true, completion: nil)
+        }
+    }
 }
 
 private extension Double {
@@ -269,9 +388,6 @@ private extension Double {
     }
 }
 
-/// A simple compass view that displays a circle with an arrow.
-/// The arrow rotates (in the opposite direction of the map rotation)
-/// so that it always points toward north.
 struct CompassView: View {
     let mapRotation: Angle
 
@@ -286,11 +402,12 @@ struct CompassView: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 30, height: 30)
                 .foregroundColor(.red)
-                // Rotate the arrow to counteract the map's rotation.
-                .rotationEffect(-mapRotation)
+                // Remove the negative sign so the arrow rotates with the map.
+                .rotationEffect(mapRotation)
         }
     }
 }
+
 
 class MotionDetector: ObservableObject {
     private let motionManager = CMMotionManager()
