@@ -11,7 +11,7 @@ enum ParameterType: String, CaseIterable {
 }
 
 struct SaveDataView: View {
-    @State private var pointNumber: Int = DataManager.loadPointNumber()
+    @State private var pointNumber: Int = DataManager.loadPointNumber() 
     @ObservedObject var magnetometer: MagnetometerViewModel
     @State private var depth: Double = DataManager.loadLastSavedDepth() // Initialize with last saved depth
     @State private var distance: Double = DataManager.loadLastSavedDistance() // Initialize with last saved distance
@@ -37,10 +37,14 @@ struct SaveDataView: View {
                 .padding()
             
             Text("Distance: \(distance, specifier: "%.2f") meters")
+                .font(.title2)
             Text("Heading: \(magnetometer.currentHeading?.magneticHeading ?? 0, specifier: "%.2f")°")
+                .font(.title2)
+
             
             // Display the currently selected parameter and its value.
             Text("\(selectedParameter.rawValue): \(currentParameterValue, specifier: "%.2f") m")
+                .font(.title2)
                 .padding()
             
             ZStack {
