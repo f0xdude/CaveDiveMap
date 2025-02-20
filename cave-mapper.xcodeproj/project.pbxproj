@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		98205A912D778D4900786E7C /* BLEViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A902D778D4900786E7C /* BLEViewController.swift */; };
+		98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A922D77A8DC00786E7C /* BLESonarView.swift */; };
 		982347B32CF06028007C87F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982347B22CF06028007C87F7 /* SettingsView.swift */; };
 		9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */; };
 		9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60D2CEBBBDF000C2A15 /* ContentView.swift */; };
@@ -20,6 +22,8 @@
 		989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57632CED22B700E46076 /* NorthOrientedMapView.swift */; };
 		989B57672CEE504500E46076 /* SaveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57662CEE504500E46076 /* SaveDataView.swift */; };
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
+		98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */; };
+		98AC8A132D67D47F000FB072 /* VisualOdometer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AC8A122D67D471000FB072 /* VisualOdometer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +44,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		98205A902D778D4900786E7C /* BLEViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEViewController.swift; sourceTree = "<group>"; };
+		98205A922D77A8DC00786E7C /* BLESonarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLESonarView.swift; sourceTree = "<group>"; };
 		982347B22CF06028007C87F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9852A6082CEBBBDF000C2A15 /* cave-mapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cave-mapper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperApp.swift; sourceTree = "<group>"; };
@@ -57,6 +63,8 @@
 		989B57652CED2B4B00E46076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		989B57662CEE504500E46076 /* SaveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveDataView.swift; sourceTree = "<group>"; };
 		989B57682CEE719100E46076 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
+		98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOdometer.swift; sourceTree = "<group>"; };
+		98AC8A122D67D471000FB072 /* VisualOdometer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualOdometer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,10 +117,14 @@
 			children = (
 				989B57652CED2B4B00E46076 /* Info.plist */,
 				989B57632CED22B700E46076 /* NorthOrientedMapView.swift */,
+				98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */,
 				987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */,
+				98205A902D778D4900786E7C /* BLEViewController.swift */,
+				98205A922D77A8DC00786E7C /* BLESonarView.swift */,
 				9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */,
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
+				98AC8A122D67D471000FB072 /* VisualOdometer.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
@@ -277,13 +289,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				98205A912D778D4900786E7C /* BLEViewController.swift in Sources */,
 				982347B32CF06028007C87F7 /* SettingsView.swift in Sources */,
 				987B59CD2CEBF3A400B62DCC /* MagnetometerViewModel.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
+				98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
+				98AC8A132D67D47F000FB072 /* VisualOdometer.swift in Sources */,
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
+				98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -372,7 +388,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -427,7 +443,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -445,7 +461,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"cave-mapper/Preview Content\"";
-				DEVELOPMENT_TEAM = 8SY2D3V664;
+				DEVELOPMENT_TEAM = 6KXQYJR2YC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "cave-mapper/Info.plist";
@@ -483,7 +499,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"cave-mapper/Preview Content\"";
-				DEVELOPMENT_TEAM = 8SY2D3V664;
+				DEVELOPMENT_TEAM = 6KXQYJR2YC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "cave-mapper/Info.plist";

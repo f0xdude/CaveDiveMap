@@ -37,7 +37,7 @@ struct ContentView: View {
                             
                             // Show heading accuracy with a colored dot.
                             HStack {
-                                Text("Accuracy: \(heading.headingAccuracy, specifier: "%.2f")")
+                                Text("Heading error: \(heading.headingAccuracy, specifier: "%.2f")")
                                     .font(.largeTitle)
                                 Circle()
                                     .fill(heading.headingAccuracy < 20 ? Color.green : Color.red)

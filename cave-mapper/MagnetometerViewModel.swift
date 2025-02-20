@@ -233,7 +233,7 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         DispatchQueue.main.async {
             self.currentHeading = newHeading
             
-            if newHeading.headingAccuracy < 0 || newHeading.headingAccuracy > 20 {
+            if newHeading.headingAccuracy < 0 || newHeading.headingAccuracy > 11 {
                 self.calibrationNeeded = true
             } else {
                 self.calibrationNeeded = false
@@ -242,9 +242,9 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     }
     
     func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool {
-        if let currentHeading = currentHeading {
-            return currentHeading.headingAccuracy < 0 || currentHeading.headingAccuracy > 20
-        }
+//        if let currentHeading = currentHeading {
+//            return currentHeading.headingAccuracy < 0 || currentHeading.headingAccuracy > 20
+//        }
         return true
     }
     

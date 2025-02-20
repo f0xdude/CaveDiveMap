@@ -162,9 +162,7 @@ struct SaveDataView: View {
         DataManager.save(savedData: savedData)
         pointNumber += 1
         DataManager.savePointNumber(pointNumber)
-        
-        //pointNumber += 1
-        
+                
         presentationMode.wrappedValue.dismiss()
     }
 }

@@ -45,16 +45,21 @@ struct SettingsView: View {
         )
     }
     
-    // Binding for the wheel radius (converted from circumference).
-    private var wheelRadiusString: Binding<String> {
+    // Binding for the wheel diameter (converted to circumference internally).
+    // Since the circumference equals π * diameter,
+    // the getter calculates diameter as: diameter = wheelCircumference / π,
+    // and the setter converts the entered diameter to circumference.
+    private var wheelDiameterString: Binding<String> {
         Binding<String>(
             get: {
-                let radius = viewModel.wheelCircumference / (2 * Double.pi)
-                return numberFormatter.string(from: NSNumber(value: radius)) ?? ""
+                let diameter = viewModel.wheelCircumference / Double.pi
+                return numberFormatter.string(from: NSNumber(value: diameter)) ?? ""
             },
             set: { newValue in
                 if let number = numberFormatter.number(from: newValue) {
-                    viewModel.wheelCircumference = 2 * Double.pi * number.doubleValue
+                    // Convert the entered diameter to circumference:
+                    // circumference = π * diameter.
+                    viewModel.wheelCircumference = Double.pi * number.doubleValue
                 } else if newValue.isEmpty {
                     viewModel.wheelCircumference = 0
                 }
@@ -103,9 +108,9 @@ struct SettingsView: View {
                     // MARK: - Wheel Settings Section
                     Section(header: Text("Wheel Settings")) {
                         HStack {
-                            Text("Wheel Radius (cm)")
+                            Text("Wheel Diameter (cm)")
                             Spacer()
-                            TextField("7", text: wheelRadiusString)
+                            TextField("Diameter", text: wheelDiameterString)
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 100)
@@ -144,6 +149,24 @@ struct SettingsView: View {
                         Link("About App", destination: URL(string: "https://example.com")!)
                             .foregroundColor(.blue)
                     }
+                    
+                    NavigationLink(destination: VisualOdometer()) {
+                        Text("(Experimental) Visual Odometer")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+
+                    NavigationLink(destination: AudioOdometer()) {
+                        Text("(Experimental) Audio Odometer")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    NavigationLink(destination: BLESonarView()) {
+                        Text("(Experimental) BLE SONAR")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -164,7 +187,7 @@ struct SettingsView: View {
 extension View {
     func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                        to: nil, from: nil, for: nil)
+                                          to: nil, from: nil, for: nil)
     }
 }
 #endif
