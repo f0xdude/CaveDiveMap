@@ -25,12 +25,13 @@ struct ContentView: View {
                     // Display the current compass heading.
                     if let heading = magnetometer.currentHeading {
                         VStack {
-                            Text("Compass Heading")
+                            Text("Magnetic Heading")
                                 .font(.largeTitle)
                                 .monospacedDigit()
-                            Text("\(heading.trueHeading, specifier: "%.2f")°")
+                            Text("\(heading.magneticHeading, specifier: "%.2f")°")
                                 .font(.largeTitle)
                                 .monospacedDigit()
+                           
                             
                             Divider()
                             

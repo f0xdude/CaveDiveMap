@@ -160,9 +160,10 @@ struct SaveDataView: View {
             rtype: "manual"
         )
         DataManager.save(savedData: savedData)
+        pointNumber += 1
         DataManager.savePointNumber(pointNumber)
         
-        pointNumber += 1
+        //pointNumber += 1
         
         presentationMode.wrappedValue.dismiss()
     }
