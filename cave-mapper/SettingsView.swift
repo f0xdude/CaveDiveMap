@@ -146,7 +146,25 @@ struct SettingsView: View {
                     
                     // MARK: - About App Section
                     Section {
-                        Link("About App", destination: URL(string: "https://example.com")!)
+                        Link("Documentation and help", destination: URL(string: "https://github.com/f0xdude/CaveDiveMap")!)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    NavigationLink(destination: VisualOdometer()) {
+                        Text("(Experimental) Visual Odometer")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+
+                    NavigationLink(destination: AudioOdometer()) {
+                        Text("(Experimental) Audio Odometer")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    NavigationLink(destination: BLESonarView()) {
+                        Text("(Experimental) BLE SONAR")
+                            .font(.headline)
                             .foregroundColor(.blue)
                     }
                     
