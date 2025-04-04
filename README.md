@@ -30,6 +30,9 @@ Currently, only non 3d printed parts needed are:
 If you have a bigger magnet, you can drill out the hole bigger or melt it or glue it on the wheel whatever works.
 
 
+App is now available in app store:
+https://apps.apple.com/bg/app/cavedivemap/id6743342160
+
 STL files for the measurement wheel device available at:
 https://www.thingiverse.com/thing:6950056
 

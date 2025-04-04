@@ -1,3 +1,11 @@
+//
+//  MagnetometerViewModel 2.swift
+//  cave-mapper
+//
+//  Created by Andrey Manolov on 1.04.25.
+//
+
+
 import SwiftUI
 import CoreMotion
 import CoreLocation

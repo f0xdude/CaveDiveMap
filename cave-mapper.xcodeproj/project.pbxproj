@@ -17,13 +17,15 @@
 		9852A61D2CEBBBE0000C2A15 /* cave_mapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A61C2CEBBBE0000C2A15 /* cave_mapperTests.swift */; };
 		9852A6272CEBBBE0000C2A15 /* cave_mapperUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */; };
 		9852A6292CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */; };
-		987B59CD2CEBF3A400B62DCC /* MagnetometerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */; };
 		9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9886EDD02D63E61A00EF570D /* CameraView.swift */; };
 		989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57632CED22B700E46076 /* NorthOrientedMapView.swift */; };
 		989B57672CEE504500E46076 /* SaveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57662CEE504500E46076 /* SaveDataView.swift */; };
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
 		98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */; };
-		98AC8A132D67D47F000FB072 /* VisualOdometer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AC8A122D67D471000FB072 /* VisualOdometer.swift */; };
+		98D7255F2D989D7800971693 /* OdometryMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D7255E2D989D7800971693 /* OdometryMode.swift */; };
+		98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */; };
+		98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E9012D9C8B8200B5607B /* VisualMapper.swift */; };
+		98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,14 +59,16 @@
 		9852A6222CEBBBE0000C2A15 /* cave-mapperUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "cave-mapperUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITests.swift; sourceTree = "<group>"; };
 		9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MagnetometerViewModel.swift; sourceTree = "<group>"; };
 		9886EDD02D63E61A00EF570D /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		989B57632CED22B700E46076 /* NorthOrientedMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorthOrientedMapView.swift; sourceTree = "<group>"; };
 		989B57652CED2B4B00E46076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		989B57662CEE504500E46076 /* SaveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveDataView.swift; sourceTree = "<group>"; };
 		989B57682CEE719100E46076 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
 		98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOdometer.swift; sourceTree = "<group>"; };
-		98AC8A122D67D471000FB072 /* VisualOdometer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualOdometer.swift; sourceTree = "<group>"; };
+		98D7255E2D989D7800971693 /* OdometryMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OdometryMode.swift; sourceTree = "<group>"; };
+		98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MagnetometerViewModel 2.swift"; sourceTree = "<group>"; };
+		98E5E9012D9C8B8200B5607B /* VisualMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualMapper.swift; sourceTree = "<group>"; };
+		98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ThreeDMapView 2.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,13 +122,15 @@
 				989B57652CED2B4B00E46076 /* Info.plist */,
 				989B57632CED22B700E46076 /* NorthOrientedMapView.swift */,
 				98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */,
-				987B59CC2CEBF3A400B62DCC /* MagnetometerViewModel.swift */,
+				98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */,
 				98205A902D778D4900786E7C /* BLEViewController.swift */,
 				98205A922D77A8DC00786E7C /* BLESonarView.swift */,
 				9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */,
+				98E5E9012D9C8B8200B5607B /* VisualMapper.swift */,
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
+				98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */,
+				98D7255E2D989D7800971693 /* OdometryMode.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
-				98AC8A122D67D471000FB072 /* VisualOdometer.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
@@ -223,7 +229,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1430;
-				LastUpgradeCheck = 1620;
+				LastUpgradeCheck = 1630;
 				TargetAttributes = {
 					9852A6072CEBBBDF000C2A15 = {
 						CreatedOnToolsVersion = 14.3.1;
@@ -289,18 +295,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */,
 				98205A912D778D4900786E7C /* BLEViewController.swift in Sources */,
 				982347B32CF06028007C87F7 /* SettingsView.swift in Sources */,
-				987B59CD2CEBF3A400B62DCC /* MagnetometerViewModel.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
 				98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
-				98AC8A132D67D47F000FB072 /* VisualOdometer.swift in Sources */,
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
 				98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
+				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
+				98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */,
+				98D7255F2D989D7800971693 /* OdometryMode.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -478,7 +486,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -516,7 +524,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

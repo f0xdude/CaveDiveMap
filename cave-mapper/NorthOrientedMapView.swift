@@ -71,6 +71,17 @@ struct NorthOrientedMapView: View {
                                 .font(.title2)
                         }
                     }
+                    
+                    NavigationLink(destination: ThreeDCaveMapView()) {
+                                ZStack {
+                                    Circle().fill(Color.purple).frame(width: 50, height: 50)
+                                    Image(systemName: "view.3d")
+                                        .foregroundColor(.white)
+                                        .font(.title2)
+                                }
+                            }
+                    
+                        
                     Button(action: { shareTherionData() }) {
                         ZStack {
                             Circle().fill(Color.gray).frame(width: 50, height: 50)

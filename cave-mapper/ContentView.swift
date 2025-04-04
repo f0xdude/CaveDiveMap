@@ -2,27 +2,20 @@ import SwiftUI
 import CoreLocation
 
 struct ContentView: View {
-    // Use one instance of the view model for the entire view.
     @StateObject private var magnetometer = MagnetometerViewModel()
     
     @State private var showCalibrationAlert = false
     @State private var showResetSuccessAlert = false
     @State private var pointNumber: Int = DataManager.loadPointNumber()
-    @State private var showSettings = false // State variable for settings
-    
-    // New state variables for save navigation and calibration toast.
+    @State private var showSettings = false
     @State private var navigateToSaveDataView = false
     @State private var showCalibrationToast = false
-    
-    // New state variable for showing the camera view.
     @State private var showCameraView = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Main content.
                 VStack {
-                    // Display the current compass heading.
                     if let heading = magnetometer.currentHeading {
                         VStack {
                             Text("Magnetic Heading")
@@ -31,11 +24,7 @@ struct ContentView: View {
                             Text("\(heading.magneticHeading, specifier: "%.2f")°")
                                 .font(.largeTitle)
                                 .monospacedDigit()
-                           
-                            
                             Divider()
-                            
-                            // Show heading accuracy with a colored dot.
                             HStack {
                                 Text("Heading error: \(heading.headingAccuracy, specifier: "%.2f")")
                                     .font(.largeTitle)
@@ -47,32 +36,27 @@ struct ContentView: View {
                     } else {
                         Text("Heading not available")
                     }
-                    
+
                     Divider()
-                    
-                    // Display the calculated distance.
+
                     VStack(alignment: .leading) {
                         Text("Distance")
                             .font(.largeTitle)
-                        Text("\(magnetometer.distanceInMeters, specifier: "%.2f") m")
+                        Text("\(magnetometer.dynamicDistanceInMeters, specifier: "%.2f") m")
                             .font(.largeTitle)
                             .monospacedDigit()
                     }
-                    
+
                     Divider()
-                    
+
                     Text("Datapoints collected:")
                     Text("\(pointNumber)")
-                    
-                    Spacer() // Push content up to leave space for the buttons at the bottom
-                    
-                    // Bottom buttons
+
+                    Spacer()
+
                     ZStack {
-                        // --- Save Button ---
                         Button(action: {
-                            // If there is a heading, check its accuracy.
                             if let heading = magnetometer.currentHeading, heading.headingAccuracy > 20 {
-                                // Show a calibration toast for 1 second.
                                 showCalibrationToast = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                                     withAnimation {
@@ -80,22 +64,20 @@ struct ContentView: View {
                                     }
                                 }
                             } else {
-                                // Accuracy is good, so navigate to SaveDataView.
                                 navigateToSaveDataView = true
                             }
                         }) {
                             ZStack {
                                 Circle()
                                     .fill(Color.green)
-                                    .frame(width: 70, height: 70) // Increased to 70x70
+                                    .frame(width: 70, height: 70)
                                 Image(systemName: "square.and.arrow.down.fill")
                                     .foregroundColor(.white)
                                     .font(.title2)
                             }
                         }
                         .padding(.bottom, 20)
-                        
-                        // Navigation button to show a north-oriented map.
+
                         NavigationLink {
                             NorthOrientedMapView()
                         } label: {
@@ -109,12 +91,11 @@ struct ContentView: View {
                             }
                         }
                         .offset(x: 130, y: 10)
-                        
-                        // --- Reset Button ---
+
                         ZStack {
                             Circle()
                                 .fill(Color.red)
-                                .frame(width: 70, height: 70) // Decreased to 50x50
+                                .frame(width: 70, height: 70)
                             Text("Reset")
                                 .foregroundColor(.white)
                                 .bold()
@@ -124,8 +105,7 @@ struct ContentView: View {
                         }
                         .offset(x: -70, y: -70)
                         .padding(.bottom, 20)
-                        
-                        // --- New Camera Button ---
+
                         Button(action: {
                             showCameraView = true
                         }) {
@@ -141,10 +121,9 @@ struct ContentView: View {
                         .offset(x: 70, y: -70)
                         .padding(.bottom, 20)
                     }
-                    .padding(.bottom) // Adjust padding as needed
+                    .padding(.bottom)
                 }
                 .toolbar {
-                    // Add the settings button to the navigation bar.
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             showSettings = true
@@ -154,25 +133,27 @@ struct ContentView: View {
                         }
                     }
                 }
-                // Present the settings view, passing the same magnetometer instance.
-                .sheet(isPresented: $showSettings) {
+                .sheet(isPresented: $showSettings, onDismiss: {
+                    // Restart sensor updates after returning from settings
+                    magnetometer.stopMonitoring()
+                    magnetometer.startMonitoring()
+                }) {
                     SettingsView(viewModel: magnetometer)
                 }
                 .onAppear {
                     pointNumber = DataManager.loadPointNumber()
                     magnetometer.startMonitoring()
-                    UIApplication.shared.isIdleTimerDisabled = true // Prevent screen from sleeping.
+                    UIApplication.shared.isIdleTimerDisabled = true
                 }
                 .onDisappear {
                     magnetometer.stopMonitoring()
-                    UIApplication.shared.isIdleTimerDisabled = false // Allow screen to sleep again.
+                    UIApplication.shared.isIdleTimerDisabled = false
                 }
                 .alert(isPresented: $showCalibrationAlert) {
                     Alert(title: Text("Compass Calibration Needed"),
                           message: Text("Please move your device in a figure-eight motion to calibrate the compass."),
                           dismissButton: .default(Text("OK")))
                 }
-                // Alert for reset success message.
                 .alert(isPresented: $showResetSuccessAlert) {
                     Alert(
                         title: Text("Success"),
@@ -182,15 +163,14 @@ struct ContentView: View {
                 }
                 .onChange(of: showResetSuccessAlert) { _, isPresented in
                     if isPresented {
-                        // Dismiss the alert after 2 seconds.
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             self.showResetSuccessAlert = false
                         }
                     }
                 }
-                // Save new revolution data whenever the count changes.
-                .onChange(of: magnetometer.revolutions) { _, _ in
+                .onChange(of: magnetometer.revolutionCount) { _, _ in
                     _ = DataManager.loadLastSavedDepth()
+
                     let savedData = SavedData(
                         recordNumber: pointNumber,
                         distance: magnetometer.roundedDistanceInMeters,
@@ -200,14 +180,15 @@ struct ContentView: View {
                         right: 0.0,
                         up: 0.0,
                         down: 0.0,
-                        rtype: "auto"
+                        rtype: magnetometer.odometryMode == .magnetic ? "magnetic" : "acoustic"
                     )
+
                     pointNumber += 1
                     DataManager.save(savedData: savedData)
                     DataManager.savePointNumber(pointNumber)
                 }
-                
-                // Overlay toast for calibration message.
+
+
                 if showCalibrationToast {
                     VStack {
                         Spacer()
@@ -224,15 +205,13 @@ struct ContentView: View {
                     .animation(.easeInOut, value: showCalibrationToast)
                 }
             }
-            // Programmatic navigation for SaveDataView.
             .navigationDestination(isPresented: $navigateToSaveDataView) {
                 SaveDataView(magnetometer: magnetometer)
             }
-            // Present the camera view when needed.
             .fullScreenCover(isPresented: $showCameraView) {
                 CameraView(
                     pointNumber: pointNumber,
-                    distance: magnetometer.distanceInMeters,
+                    distance: magnetometer.dynamicDistanceInMeters,
                     heading: magnetometer.currentHeading?.trueHeading ?? 0,
                     depth: 0.00
                 )
@@ -240,12 +219,12 @@ struct ContentView: View {
         }
     }
 
-    /// Resets monitoring data and clears stored values.
     private func resetMonitoringData() {
         pointNumber = 0
         magnetometer.revolutions = 0
         magnetometer.magneticFieldHistory = []
+        magnetometer.clickDetector?.clickCount = 0
         DataManager.resetAllData()
-        showResetSuccessAlert = true // Show success message.
+        showResetSuccessAlert = true
     }
 }
