@@ -147,7 +147,7 @@ struct ContentView: View {
                 }
                 .onDisappear {
                     magnetometer.stopMonitoring()
-                    UIApplication.shared.isIdleTimerDisabled = false
+                   // UIApplication.shared.isIdleTimerDisabled = false
                 }
                 .alert(isPresented: $showCalibrationAlert) {
                     Alert(title: Text("Compass Calibration Needed"),

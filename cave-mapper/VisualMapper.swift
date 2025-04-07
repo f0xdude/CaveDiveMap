@@ -75,6 +75,34 @@ struct VisualMapper: UIViewRepresentable {
         stopButton.addTarget(context.coordinator, action: #selector(Coordinator.stopSession), for: .touchUpInside)
         arView.addSubview(stopButton)
 
+        
+        let trackingLabel = UILabel()
+        trackingLabel.textColor = .white
+        trackingLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+        trackingLabel.translatesAutoresizingMaskIntoConstraints = false
+        trackingLabel.tag = 103
+        trackingLabel.text = "Tracking: --"
+        arView.addSubview(trackingLabel)
+
+        NSLayoutConstraint.activate([
+            trackingLabel.topAnchor.constraint(equalTo: arView.topAnchor, constant: 160),
+            trackingLabel.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20)
+        ])
+        
+        let driftLabel = UILabel()
+        driftLabel.textColor = .white
+        driftLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+        driftLabel.translatesAutoresizingMaskIntoConstraints = false
+        driftLabel.tag = 104
+        driftLabel.text = "Drift: --"
+        arView.addSubview(driftLabel)
+
+        NSLayoutConstraint.activate([
+            driftLabel.topAnchor.constraint(equalTo: arView.topAnchor, constant: 130),
+            driftLabel.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20)
+        ])
+
+        
         NSLayoutConstraint.activate([
             resetButton.trailingAnchor.constraint(equalTo: arView.centerXAnchor, constant: -40),
             resetButton.bottomAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.bottomAnchor, constant: -90),
@@ -101,7 +129,7 @@ struct VisualMapper: UIViewRepresentable {
         private var previousAnchor: AnchorEntity?
         private var previousPosition: SIMD3<Float>?
         private var totalDistance: Float = 0.0
-        private var pathPoints: [(position: SIMD3<Float>, distance: Float, heading: Double, depth: Float)] = []
+        private var pathPoints: [(position: SIMD3<Float>, distance: Float, heading: Double, depth: Float, drift: Float)] = []
         private let locationManager = CLLocationManager()
         private var currentHeading: CLHeading?
         private var lastUpdateTime: TimeInterval = 0
@@ -123,6 +151,45 @@ struct VisualMapper: UIViewRepresentable {
             currentHeading = newHeading
         }
 
+        func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {
+            DispatchQueue.main.async {
+                self.updateTrackingStateLabel(camera.trackingState)
+            }
+        }
+
+        func updateTrackingStateLabel(_ trackingState: ARCamera.TrackingState) {
+            guard let arView = arView,
+                  let label = arView.viewWithTag(103) as? UILabel else { return }
+
+            var text = "Tracking: "
+            var color = UIColor.white
+
+            switch trackingState {
+            case .notAvailable:
+                text += "Not Available"
+                color = .red
+            case .normal:
+                text += "Normal"
+                color = .green
+            case .limited(let reason):
+                text += "Limited ("
+                switch reason {
+                case .excessiveMotion: text += "Motion"
+                case .insufficientFeatures: text += "Low Features"
+                case .initializing: text += "Initializing"
+                case .relocalizing: text += "Relocalizing"
+                @unknown default: text += "Unknown"
+                }
+                text += ")"
+                color = .orange
+            }
+
+            label.text = text
+            label.textColor = color
+        }
+
+        
+        
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
             UIApplication.shared.isIdleTimerDisabled = true
 
@@ -141,28 +208,69 @@ struct VisualMapper: UIViewRepresentable {
 
         func checkForLoopClosure(at currentPosition: SIMD3<Float>, heading: Double) -> Bool {
             guard loopClosureEnabled, pathPoints.count > 20 else { return false }
+
             for i in 0..<(pathPoints.count - 20) {
                 let prev = pathPoints[i]
                 let distance = simd_distance(prev.position, currentPosition)
                 let headingDiff = abs(prev.heading - heading)
-                if distance < 0.2 && headingDiff < 20 {
+
+                if distance < 0.2 && headingDiff < 10 {
+                    let drift = simd_length(prev.position - currentPosition)
+                    if drift < 0.3 {
+                        // Too small to correct—likely noise
+                        return false
+                    }
+
                     print("\u{1F501} Loop closure detected at index \(i)")
                     showLoopClosureIndicator(at: currentPosition)
-                    correctDrift(from: i, to: pathPoints.count - 1, currentPos: currentPosition, matchedPos: prev.position)
                     drawCorrectionLine(from: currentPosition, to: prev.position)
+                    correctDriftSmoothly(from: i, to: pathPoints.count - 1, currentPos: currentPosition, matchedPos: prev.position)
                     return true
                 }
             }
             return false
         }
 
-        func correctDrift(from startIndex: Int, to endIndex: Int, currentPos: SIMD3<Float>, matchedPos: SIMD3<Float>) {
+        func correctDriftSmoothly(from startIndex: Int, to endIndex: Int, currentPos: SIMD3<Float>, matchedPos: SIMD3<Float>) {
             let correction = matchedPos - currentPos
-            print("Applying correction: \(correction)")
-            for i in 0...endIndex {
-                pathPoints[i].position += correction
+            let rangeLength = Float(endIndex - startIndex + 1)
+            print("Applying smooth correction over range \(startIndex)-\(endIndex): \(correction)")
+
+            for (offset, i) in (startIndex...endIndex).enumerated() {
+                let factor = Float(offset) / rangeLength
+                let blendedCorrection = correction * factor
+                pathPoints[i].position += blendedCorrection
+                pathPoints[i].drift = simd_length(blendedCorrection)
+            }
+
+            updateDriftLabel()
+        }
+
+
+        func updateDriftLabel() {
+            guard let arView = arView,
+                  let label = arView.viewWithTag(104) as? UILabel else { return }
+
+            let recent = pathPoints.suffix(10)
+            guard !recent.isEmpty else {
+                label.text = "Drift: --"
+                label.textColor = .white
+                return
+            }
+
+            let avgDrift = recent.map { $0.drift }.reduce(0, +) / Float(recent.count)
+            label.text = String(format: "Drift: %.2f m", avgDrift)
+
+            // Color-code based on accuracy
+            if avgDrift < 0.05 {
+                label.textColor = .green
+            } else if avgDrift < 0.15 {
+                label.textColor = .orange
+            } else {
+                label.textColor = .red
             }
         }
+
 
         func drawCorrectionLine(from: SIMD3<Float>, to: SIMD3<Float>) {
             guard let arView = arView else { return }
@@ -223,12 +331,12 @@ struct VisualMapper: UIViewRepresentable {
                 let displacement = position - previous
                 segmentDistance = simd_length(displacement)
 
-                if segmentDistance > 0.1 { // Minimum threshold
+                if segmentDistance > 0.05 { // Minimum threshold
                     if pathPoints.count >= 2 {
                         let prevDir = simd_normalize(previous - pathPoints[pathPoints.count - 2].position)
                         let newDir = simd_normalize(displacement)
                         let directionChange = simd_dot(prevDir, newDir)
-                        shouldCountDistance = directionChange > 0.8 // Angle threshold
+                        shouldCountDistance = directionChange > 0.7 // Angle threshold
                     } else {
                         shouldCountDistance = true
                     }
@@ -243,8 +351,11 @@ struct VisualMapper: UIViewRepresentable {
                 }
             }
 
-            let depth = simd_length(position - (pathPoints.first?.position ?? position))
-            pathPoints.append((position: position, distance: totalDistance, heading: heading, depth: depth))
+            //let depth = simd_length(position - (pathPoints.first?.position ?? position))
+            let depth = abs(position.y - (pathPoints.first?.position.y ?? position.y))
+
+            
+            pathPoints.append((position: position, distance: totalDistance, heading: heading, depth: depth, drift: 0.0))
 
             updateLabel()
             updateMaxDepthLabel()
