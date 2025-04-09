@@ -7,8 +7,8 @@ struct VisualMapper: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
 
-        arView.debugOptions.insert(.showFeaturePoints)
-        arView.debugOptions.insert(.showSceneUnderstanding)
+        //arView.debugOptions.insert(.showFeaturePoints)
+        //arView.debugOptions.insert(.showSceneUnderstanding)
         arView.renderOptions = [.disableMotionBlur,
                                 .disableDepthOfField,
                                 .disablePersonOcclusion,
@@ -19,6 +19,10 @@ struct VisualMapper: UIViewRepresentable {
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = []
         config.environmentTexturing = .none
+        config.sceneReconstruction = []  // if not using scene mesh
+        config.isLightEstimationEnabled = false
+        config.frameSemantics = []        // disable body/person detection
+        
         arView.session.run(config)
 
         context.coordinator.setup(arView: arView)
@@ -133,7 +137,7 @@ struct VisualMapper: UIViewRepresentable {
         private let locationManager = CLLocationManager()
         private var currentHeading: CLHeading?
         private var lastUpdateTime: TimeInterval = 0
-        private let updateInterval: TimeInterval = 0.3
+        private let updateInterval: TimeInterval = 0.5
         private var isSessionActive: Bool = true
         private var loopClosureEnabled: Bool = true
         var stopButton: UIButton?
@@ -146,6 +150,11 @@ struct VisualMapper: UIViewRepresentable {
             locationManager.startUpdatingHeading()
             locationManager.requestWhenInUseAuthorization()
         }
+        
+        func sessionShouldAttemptRelocalization(_ session: ARSession) -> Bool {
+            return true
+        }
+
 
         func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
             currentHeading = newHeading
@@ -202,8 +211,19 @@ struct VisualMapper: UIViewRepresentable {
             let position = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
 
             DispatchQueue.main.async {
-                self.placeMarker(at: position)
+                // Place a marker only if we've moved enough
+                if let previous = self.previousPosition {
+                    let distance = simd_distance(previous, position)
+                    if distance >= 0.25 { // place markers every 25cm
+                        self.placeMarker(at: position)
+                    }
+                } else {
+                    // Always place the first marker
+                    self.placeMarker(at: position)
+                }
             }
+
+            
         }
 
         func checkForLoopClosure(at currentPosition: SIMD3<Float>, heading: Double) -> Bool {
@@ -315,15 +335,52 @@ struct VisualMapper: UIViewRepresentable {
             let heading = currentHeading?.magneticHeading ?? -1
             _ = checkForLoopClosure(at: position, heading: heading)
 
-            let sphere = MeshResource.generateSphere(radius: 0.020)
-            let material = UnlitMaterial(color: .yellow)
-            let entity = ModelEntity(mesh: sphere, materials: [material])
-            entity.position = [0, 0, 0]
+            // Direction to previous point (local path orientation)
+            var direction = SIMD3<Float>(0, 0, -1)
+            if let previous = previousPosition {
+                direction = simd_normalize(previous - position)
+            }
 
+            // Load the USDZ arrow model
+            guard let arrowEntity = try? Entity.loadModel(named: "cave_arrow.usdz") else {
+                print("❌ Failed to load cave_arrow.usdz")
+                return
+            }
+
+            // Apply glowing yellow material to all parts (RealityKit 2 compatible)
+            let glowingYellow = UnlitMaterial(color: .yellow)
+
+            func applyMaterialRecursively(to entity: Entity, material: RealityKit.Material) {
+                if let model = entity as? ModelEntity {
+                    model.model?.materials = [material]
+                }
+                for child in entity.children {
+                    applyMaterialRecursively(to: child, material: material)
+                }
+            }
+
+            applyMaterialRecursively(to: arrowEntity, material: glowingYellow)
+
+            // Scale the arrow to a usable size
+            arrowEntity.scale = SIMD3<Float>(repeating: 0.001)
+
+            // Orient arrow to face previous path point
+            let lookAtTarget = position + direction
+
+            arrowEntity.look(at: lookAtTarget, from: position, relativeTo: nil)
+
+            
+            
+            
+            // Slight upward offset so it doesn't clip the surface
+            arrowEntity.position = SIMD3<Float>(0, 0.015, 0)
+
+            // Anchor it to the world
             let anchor = AnchorEntity(world: position)
-            anchor.addChild(entity)
+            anchor.addChild(arrowEntity)
             arView.scene.addAnchor(anchor)
 
+            // Path line and distance logic
             var segmentDistance: Float = 0.0
             var shouldCountDistance = false
 
@@ -331,19 +388,19 @@ struct VisualMapper: UIViewRepresentable {
                 let displacement = position - previous
                 segmentDistance = simd_length(displacement)
 
-                if segmentDistance > 0.05 { // Minimum threshold
+                if segmentDistance > 0.05 {
                     if pathPoints.count >= 2 {
                         let prevDir = simd_normalize(previous - pathPoints[pathPoints.count - 2].position)
                         let newDir = simd_normalize(displacement)
                         let directionChange = simd_dot(prevDir, newDir)
-                        shouldCountDistance = directionChange > 0.7 // Angle threshold
+                        shouldCountDistance = directionChange > 0.7
                     } else {
                         shouldCountDistance = true
                     }
                 }
 
                 if shouldCountDistance {
-                    let lineEntity = generateLine(from: .zero, to: displacement)
+                    let lineEntity = generateLine(from: .zero, to: position - previous)
                     if let previousAnchor = previousAnchor {
                         previousAnchor.addChild(lineEntity)
                     }
@@ -351,11 +408,8 @@ struct VisualMapper: UIViewRepresentable {
                 }
             }
 
-            //let depth = simd_length(position - (pathPoints.first?.position ?? position))
-            let depth = abs(position.y - (pathPoints.first?.position.y ?? position.y))
-
-            
-            pathPoints.append((position: position, distance: totalDistance, heading: heading, depth: depth, drift: 0.0))
+            let depthToStart = abs(position.y - (pathPoints.first?.position.y ?? position.y))
+            pathPoints.append((position: position, distance: totalDistance, heading: heading, depth: depthToStart, drift: 0.0))
 
             updateLabel()
             updateMaxDepthLabel()
@@ -363,6 +417,10 @@ struct VisualMapper: UIViewRepresentable {
             previousAnchor = anchor
             previousPosition = position
         }
+
+
+
+
 
         func updateLabel() {
             guard let arView = arView,

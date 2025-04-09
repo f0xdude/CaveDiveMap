@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		98205A912D778D4900786E7C /* BLEViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A902D778D4900786E7C /* BLEViewController.swift */; };
 		98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A922D77A8DC00786E7C /* BLESonarView.swift */; };
+		982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */; };
 		982347B32CF06028007C87F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982347B22CF06028007C87F7 /* SettingsView.swift */; };
 		9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */; };
 		9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60D2CEBBBDF000C2A15 /* ContentView.swift */; };
@@ -48,6 +49,7 @@
 /* Begin PBXFileReference section */
 		98205A902D778D4900786E7C /* BLEViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEViewController.swift; sourceTree = "<group>"; };
 		98205A922D77A8DC00786E7C /* BLESonarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLESonarView.swift; sourceTree = "<group>"; };
+		982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = cave_arrow.usdz; sourceTree = "<group>"; };
 		982347B22CF06028007C87F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9852A6082CEBBBDF000C2A15 /* cave-mapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cave-mapper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperApp.swift; sourceTree = "<group>"; };
@@ -96,6 +98,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		982268BC2DA4820C00E9A5E3 /* 3d assets */ = {
+			isa = PBXGroup;
+			children = (
+				982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */,
+			);
+			path = "3d assets";
+			sourceTree = "<group>";
+		};
 		9852A5FF2CEBBBDF000C2A15 = {
 			isa = PBXGroup;
 			children = (
@@ -135,6 +145,7 @@
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
 				9852A60F2CEBBBE0000C2A15 /* Assets.xcassets */,
+				982268BC2DA4820C00E9A5E3 /* 3d assets */,
 				9852A6112CEBBBE0000C2A15 /* Preview Content */,
 			);
 			path = "cave-mapper";
@@ -270,6 +281,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9852A6132CEBBBE0000C2A15 /* Preview Assets.xcassets in Resources */,
+				982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */,
 				9852A6102CEBBBE0000C2A15 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
