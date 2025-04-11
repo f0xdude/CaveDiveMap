@@ -3,6 +3,7 @@ import RealityKit
 import ARKit
 import CoreLocation
 
+
 struct VisualMapper: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
@@ -141,15 +142,24 @@ struct VisualMapper: UIViewRepresentable {
         private var isSessionActive: Bool = true
         private var loopClosureEnabled: Bool = true
         var stopButton: UIButton?
+        private var idleTimerEnforcer: Timer?
+
 
         func setup(arView: ARView) {
             self.arView = arView
             UIApplication.shared.isIdleTimerDisabled = true
+            
+            idleTimerEnforcer?.invalidate()
+            idleTimerEnforcer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+                UIApplication.shared.isIdleTimerDisabled = true
+            }
+
             locationManager.delegate = self
             locationManager.headingFilter = 1
             locationManager.startUpdatingHeading()
             locationManager.requestWhenInUseAuthorization()
         }
+
         
         func sessionShouldAttemptRelocalization(_ session: ARSession) -> Bool {
             return true
@@ -569,6 +579,10 @@ struct VisualMapper: UIViewRepresentable {
             isSessionActive.toggle()
             let newTitle = isSessionActive ? "STOP" : "START"
             stopButton?.setTitle(newTitle, for: .normal)
+            
+            idleTimerEnforcer?.invalidate()
+            idleTimerEnforcer = nil
+
         }
     }
 }
