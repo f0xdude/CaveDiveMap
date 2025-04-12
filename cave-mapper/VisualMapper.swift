@@ -50,6 +50,7 @@ struct VisualMapper: UIViewRepresentable {
         exportButton.translatesAutoresizingMaskIntoConstraints = false
         exportButton.addTarget(context.coordinator, action: #selector(Coordinator.exportTapped), for: .touchUpInside)
         arView.addSubview(exportButton)
+        
 
         NSLayoutConstraint.activate([
             exportButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 10),
@@ -57,6 +58,24 @@ struct VisualMapper: UIViewRepresentable {
             exportButton.widthAnchor.constraint(equalToConstant: 100),
             exportButton.heightAnchor.constraint(equalToConstant: 36)
         ])
+        
+        
+        let exportCSVButton = UIButton(type: .system)
+        exportCSVButton.setTitle("Export CSV", for: .normal)
+        exportCSVButton.setTitleColor(.white, for: .normal)
+        exportCSVButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.8)
+        exportCSVButton.layer.cornerRadius = 8
+        exportCSVButton.translatesAutoresizingMaskIntoConstraints = false
+        exportCSVButton.addTarget(context.coordinator, action: #selector(Coordinator.exportCSVTapped), for: .touchUpInside)
+        arView.addSubview(exportCSVButton)
+
+        NSLayoutConstraint.activate([
+            exportCSVButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 10),
+            exportCSVButton.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20),
+            exportCSVButton.widthAnchor.constraint(equalToConstant: 100),
+            exportCSVButton.heightAnchor.constraint(equalToConstant: 36)
+        ])
+
 
         let resetButton = UIButton(type: .system)
         resetButton.setTitle("RESET", for: .normal)
@@ -143,6 +162,8 @@ struct VisualMapper: UIViewRepresentable {
         private var loopClosureEnabled: Bool = true
         var stopButton: UIButton?
         private var idleTimerEnforcer: Timer?
+        private var previousPassageEstimates: [String: Float] = [:]
+
 
 
         func setup(arView: ARView) {
@@ -233,8 +254,12 @@ struct VisualMapper: UIViewRepresentable {
                 }
             }
 
-            
+        // LRUD raycast method test
+            self.estimatePassageSizeUsingFeaturePoints()
+
         }
+        
+        
 
         func checkForLoopClosure(at currentPosition: SIMD3<Float>, heading: Double) -> Bool {
             guard loopClosureEnabled, pathPoints.count > 20 else { return false }
@@ -584,5 +609,114 @@ struct VisualMapper: UIViewRepresentable {
             idleTimerEnforcer = nil
 
         }
+        
+        @objc func exportCSVTapped() {
+            let filename = FileManager.default.temporaryDirectory.appendingPathComponent("path_data.csv")
+            var csv = "From,To,Distance,Heading\n"
+
+            for i in 1..<pathPoints.count {
+                let from = i
+                let to = i + 1
+                let segmentDist = pathPoints[i].distance - pathPoints[i - 1].distance
+                let heading = Int(round(pathPoints[i].heading))
+                let line = "\(from),\(to),\(String(format: "%.2f", segmentDist))m,\(heading)\n"
+                csv += line
+            }
+
+            do {
+                try csv.write(to: filename, atomically: true, encoding: .utf8)
+                print("✅ CSV exported to: \(filename)")
+
+                let vc = UIActivityViewController(activityItems: [filename], applicationActivities: nil)
+                vc.modalPresentationStyle = .automatic
+
+                DispatchQueue.main.async {
+                    if let topController = self.arView?.window?.rootViewController {
+                        var presented = topController
+                        while let next = presented.presentedViewController {
+                            presented = next
+                        }
+                        presented.present(vc, animated: true)
+                    }
+                }
+            } catch {
+                print("❌ Failed to export CSV: \(error)")
+            }
+        }
+
+        
+        func estimatePassageSizeUsingFeaturePoints() {
+            guard let arView = arView,
+                  let frame = arView.session.currentFrame,
+                  let label = arView.viewWithTag(101) as? UILabel else { return }
+
+            let cameraTransform = frame.camera.transform
+            let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+
+            let directions: [(label: String, vector: SIMD3<Float>)] = [
+                ("Left",  SIMD3<Float>(-1, 0, 0)),
+                ("Right", SIMD3<Float>(1, 0, 0)),
+                ("Up",    SIMD3<Float>(0, 1, 0)),
+                ("Down",  SIMD3<Float>(0, -1, 0))
+            ]
+
+            guard let points = frame.rawFeaturePoints?.points else { return }
+
+            var smoothedDistances: [String: Float] = [:]
+            let maxAngleRange: [Float] = [Float.pi / 12, Float.pi / 8, Float.pi / 6, Float.pi / 4]  // 15°, 22°, 30°, 45°
+            let smoothingFactor: Float = 0.6
+
+            for (labelName, localDir) in directions {
+                let worldVec4 = cameraTransform * SIMD4<Float>(localDir.x, localDir.y, localDir.z, 0)
+                let worldDir = simd_normalize(SIMD3<Float>(worldVec4.x, worldVec4.y, worldVec4.z))
+
+                var closestDistance: Float = .greatestFiniteMagnitude
+                var bestAngle: Float = .pi / 12  // Start narrow
+                var found = false
+
+                for angleLimit in maxAngleRange {
+                    for point in points {
+                        let toPoint = point - cameraPosition
+                        let distance = simd_length(toPoint)
+                        let angle = acos(simd_dot(simd_normalize(toPoint), worldDir))
+
+                        if angle < angleLimit && distance < closestDistance {
+                            closestDistance = distance
+                            bestAngle = angleLimit
+                            found = true
+                        }
+                    }
+                    if found { break } // Stop widening once we find a valid hit
+                }
+
+                // Keep previous distance if no feature found
+                let newDistance: Float = closestDistance == .greatestFiniteMagnitude ? -1 : closestDistance
+
+                // Smooth distance using exponential moving average
+                if let previous = previousPassageEstimates[labelName], newDistance > 0 {
+                    smoothedDistances[labelName] = smoothingFactor * newDistance + (1 - smoothingFactor) * previous
+                } else {
+                    smoothedDistances[labelName] = newDistance
+                }
+
+                // Update stored value
+                previousPassageEstimates[labelName] = smoothedDistances[labelName]
+            }
+
+            // Format label
+            let distStr = String(format: "Distance: %.2f m", totalDistance)
+            let headingStr = currentHeading != nil ? String(format: "Heading: %.0f°", currentHeading!.magneticHeading) : "Heading: --"
+
+            let left = smoothedDistances["Left"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
+            let right = smoothedDistances["Right"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
+            let up = smoothedDistances["Up"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
+            let down = smoothedDistances["Down"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
+
+            label.text = "\(distStr)\n\(headingStr)\nL:\(left) R:\(right) U:\(up) D:\(down)"
+        }
+
+
+        
+        
     }
 }
