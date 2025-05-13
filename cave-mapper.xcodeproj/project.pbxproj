@@ -22,8 +22,6 @@
 		989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57632CED22B700E46076 /* NorthOrientedMapView.swift */; };
 		989B57672CEE504500E46076 /* SaveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57662CEE504500E46076 /* SaveDataView.swift */; };
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
-		98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */; };
-		98D7255F2D989D7800971693 /* OdometryMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D7255E2D989D7800971693 /* OdometryMode.swift */; };
 		98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */; };
 		98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E9012D9C8B8200B5607B /* VisualMapper.swift */; };
 		98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */; };
@@ -66,8 +64,6 @@
 		989B57652CED2B4B00E46076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		989B57662CEE504500E46076 /* SaveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveDataView.swift; sourceTree = "<group>"; };
 		989B57682CEE719100E46076 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
-		98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOdometer.swift; sourceTree = "<group>"; };
-		98D7255E2D989D7800971693 /* OdometryMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OdometryMode.swift; sourceTree = "<group>"; };
 		98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MagnetometerViewModel 2.swift"; sourceTree = "<group>"; };
 		98E5E9012D9C8B8200B5607B /* VisualMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualMapper.swift; sourceTree = "<group>"; };
 		98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ThreeDMapView 2.swift"; sourceTree = "<group>"; };
@@ -131,7 +127,6 @@
 			children = (
 				989B57652CED2B4B00E46076 /* Info.plist */,
 				989B57632CED22B700E46076 /* NorthOrientedMapView.swift */,
-				98A7E16C2D6B55A30012C228 /* AudioOdometer.swift */,
 				98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */,
 				98205A902D778D4900786E7C /* BLEViewController.swift */,
 				98205A922D77A8DC00786E7C /* BLESonarView.swift */,
@@ -139,7 +134,6 @@
 				98E5E9012D9C8B8200B5607B /* VisualMapper.swift */,
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
 				98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */,
-				98D7255E2D989D7800971693 /* OdometryMode.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
@@ -311,7 +305,6 @@
 				98205A912D778D4900786E7C /* BLEViewController.swift in Sources */,
 				982347B32CF06028007C87F7 /* SettingsView.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
-				98A7E16D2D6B55A30012C228 /* AudioOdometer.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
@@ -320,7 +313,6 @@
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
 				98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */,
-				98D7255F2D989D7800971693 /* OdometryMode.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

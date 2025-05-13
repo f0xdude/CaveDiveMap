@@ -10,13 +10,19 @@ import SwiftUI
 import CoreMotion
 import CoreLocation
 
+
+enum MagneticAxis: String, CaseIterable, Identifiable, Codable {
+    case x, y, z, magnitude
+    var id: String { self.rawValue }
+}
+
+
 class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let motionManager = CMMotionManager()
     private let locationManager = CLLocationManager()
+    private let selectedAxisKey = "selectedAxis"
+
     
-    // MARK: - Odometry Mode
-    @Published var odometryMode: OdometryMode = .magnetic
-    var clickDetector: SimpleClickDetector?
 
     // MARK: - Published Properties
     @Published var highThreshold: Double = 1200
@@ -26,6 +32,15 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             UserDefaults.standard.set(wheelCircumference, forKey: "wheelCircumference")
         }
     }
+    
+    @Published var selectedAxis: MagneticAxis {
+        didSet {
+            if let data = try? JSONEncoder().encode(selectedAxis) {
+                UserDefaults.standard.set(data, forKey: selectedAxisKey)
+            }
+        }
+    }
+    
     @Published var revolutions = DataManager.loadPointNumber()
     @Published var isRunning = false
     @Published var currentField: CMMagneticField = CMMagneticField(x: 0, y: 0, z: 0)
@@ -35,6 +50,9 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var calibrationNeeded: Bool = false
     @Published var didCalibrate: Bool = false
 
+    
+    
+    
     private var isReadyForNewPeak = true
     private let smoothing: Double = 0.1
     private var previousMagnitude: Double = 0.0
@@ -44,17 +62,28 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     override init() {
         let defaults = UserDefaults.standard
         self.wheelCircumference = defaults.object(forKey: "wheelCircumference") as? Double ?? 11.78
+
         if let low = defaults.object(forKey: "lowThreshold") as? Double,
            let high = defaults.object(forKey: "highThreshold") as? Double {
             self.lowThreshold = low
             self.highThreshold = high
             self.didCalibrate = true
         }
+
+        if let data = defaults.data(forKey: selectedAxisKey),
+           let axis = try? JSONDecoder().decode(MagneticAxis.self, from: data) {
+            self.selectedAxis = axis
+        } else {
+            self.selectedAxis = .magnitude
+        }
+
         super.init()
+        
         locationManager.delegate = self
         locationManager.headingFilter = 1
         locationManager.requestWhenInUseAuthorization()
     }
+
 
     func startMonitoring() {
         
@@ -81,28 +110,30 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             locationManager.startUpdatingHeading()
         }
 
-        // Start audio odometry if selected
-        if odometryMode == .acoustic {
-            if clickDetector == nil {
-                clickDetector = SimpleClickDetector()
-            }
-            clickDetector?.startListening()
-        }
+        
     }
 
     func stopMonitoring() {
         motionManager.stopMagnetometerUpdates()
         locationManager.stopUpdatingHeading()
         isRunning = false
-        clickDetector?.stopListening()
     }
 
     private func calculateMagnitude(_ field: CMMagneticField) -> Double {
-        return sqrt(field.x * field.x + field.y * field.y + field.z * field.z)
+        switch selectedAxis {
+        case .x:
+            return abs(field.x)
+        case .y:
+            return abs(field.y)
+        case .z:
+            return abs(field.z)
+        case .magnitude:
+            return sqrt(field.x * field.x + field.y * field.y + field.z * field.z)
+        }
     }
 
+
     private func detectPeak(_ magnitude: Double) {
-        guard odometryMode == .magnetic else { return }
         if isReadyForNewPeak && magnitude > highThreshold {
             revolutions += 1
             isReadyForNewPeak = false
@@ -150,10 +181,7 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     var revolutionCount: Int {
-        switch odometryMode {
-        case .magnetic: return revolutions
-        case .acoustic: return clickDetector?.clickCount ?? 0
-        }
+         return revolutions
     }
 
     var dynamicDistanceInMeters: Double {

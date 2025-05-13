@@ -1,60 +1,34 @@
 import SwiftUI
+import Combine
 
 struct SettingsView: View {
     @ObservedObject var viewModel: MagnetometerViewModel
-
-    private var numberFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter
-    }
-
-    private var highThresholdString: Binding<String> {
-        Binding<String>(
-            get: {
-                numberFormatter.string(from: NSNumber(value: viewModel.highThreshold)) ?? ""
-            },
-            set: { newValue in
-                if let number = numberFormatter.number(from: newValue) {
-                    viewModel.highThreshold = number.doubleValue
-                } else if newValue.isEmpty {
-                    viewModel.highThreshold = 0
-                }
-            }
+    
+    // Formatter used for displaying final formatted values
+    private let numberFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 2
+        return f
+    }()
+    
+    // Local edit buffers for smoother typing
+    @State private var lowThresholdText: String = ""
+    @State private var highThresholdText: String = ""
+    @State private var wheelDiameterText: String = ""
+    
+    // Binding for axis selection
+    private var axisSelection: Binding<MagneticAxis> {
+        Binding<MagneticAxis>(
+            get: { viewModel.selectedAxis },
+            set: { viewModel.selectedAxis = $0 }
         )
     }
-
-    private var lowThresholdString: Binding<String> {
-        Binding<String>(
-            get: {
-                numberFormatter.string(from: NSNumber(value: viewModel.lowThreshold)) ?? ""
-            },
-            set: { newValue in
-                if let number = numberFormatter.number(from: newValue) {
-                    viewModel.lowThreshold = number.doubleValue
-                } else if newValue.isEmpty {
-                    viewModel.lowThreshold = 0
-                }
-            }
-        )
-    }
-
-    private var wheelDiameterString: Binding<String> {
-        Binding<String>(
-            get: {
-                let diameter = viewModel.wheelCircumference / Double.pi
-                return numberFormatter.string(from: NSNumber(value: diameter)) ?? ""
-            },
-            set: { newValue in
-                if let number = numberFormatter.number(from: newValue) {
-                    viewModel.wheelCircumference = Double.pi * number.doubleValue
-                } else if newValue.isEmpty {
-                    viewModel.wheelCircumference = 0
-                }
-            }
-        )
+    
+    // Decimal separator (locale-aware)
+    private var decimalSeparator: String {
+        numberFormatter.decimalSeparator ?? "."
     }
 
     var body: some View {
@@ -65,14 +39,14 @@ struct SettingsView: View {
                     .onTapGesture { hideKeyboard() }
 
                 Form {
-                    // 🧭 Odometry Mode Selection
-                    Section(header: Text("Odometry Mode")) {
-                        Picker("Mode", selection: $viewModel.odometryMode) {
-                            ForEach(OdometryMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
+                    // 🧭 Axis Selection
+                    Section(header: Text("Magnetic Axis for Detection")) {
+                        Picker("Axis", selection: axisSelection) {
+                            ForEach(MagneticAxis.allCases) { axis in
+                                Text(axis.rawValue.uppercased()).tag(axis)
                             }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(SegmentedPickerStyle())
                     }
 
                     // 🧪 Calibration Thresholds
@@ -80,24 +54,56 @@ struct SettingsView: View {
                         HStack {
                             Text("Low Threshold")
                             Spacer()
-                            TextField("Low Threshold", text: lowThresholdString)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 100)
+                            TextField("Low Threshold", text: $lowThresholdText, onEditingChanged: { editing in
+                                if !editing { commitLowThreshold() }
+                            })
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .onReceive(Just(lowThresholdText)) { newValue in
+                                // Break up filter into explicit loop to aid type-checking
+                                let allowed = "0123456789" + decimalSeparator
+                                var filtered = ""
+                                for char in newValue {
+                                    guard allowed.contains(char) else { continue }
+                                    if String(char) == decimalSeparator && filtered.contains(decimalSeparator) {
+                                        continue
+                                    }
+                                    filtered.append(char)
+                                }
+                                if filtered != newValue {
+                                    lowThresholdText = filtered
+                                }
+                            }
                         }
 
                         HStack {
                             Text("High Threshold")
                             Spacer()
-                            TextField("High Threshold", text: highThresholdString)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 100)
+                            TextField("High Threshold", text: $highThresholdText, onEditingChanged: { editing in
+                                if !editing { commitHighThreshold() }
+                            })
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .onReceive(Just(highThresholdText)) { newValue in
+                                // Break up filter into explicit loop
+                                let allowed = "0123456789" + decimalSeparator
+                                var filtered = ""
+                                for char in newValue {
+                                    guard allowed.contains(char) else { continue }
+                                    if String(char)  == decimalSeparator && filtered.contains(decimalSeparator) {
+                                        continue
+                                    }
+                                    filtered.append(char)
+                                }
+                                if filtered != newValue {
+                                    highThresholdText = filtered
+                                }
+                            }
                         }
 
-                        Button(action: {
-                            viewModel.runManualCalibration()
-                        }) {
+                        Button(action: viewModel.runManualCalibration) {
                             Text("Detect Automatically")
                         }
                     }
@@ -107,10 +113,27 @@ struct SettingsView: View {
                         HStack {
                             Text("Wheel Diameter (cm)")
                             Spacer()
-                            TextField("Diameter", text: wheelDiameterString)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 100)
+                            TextField("Diameter", text: $wheelDiameterText, onEditingChanged: { editing in
+                                if !editing { commitWheelDiameter() }
+                            })
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .onReceive(Just(wheelDiameterText)) { newValue in
+                                // Break up filter into explicit loop
+                                let allowed = "0123456789" + decimalSeparator
+                                var filtered = ""
+                                for char in newValue {
+                                    guard allowed.contains(char) else { continue }
+                                    if String(char)  == decimalSeparator && filtered.contains(decimalSeparator) {
+                                        continue
+                                    }
+                                    filtered.append(char)
+                                }
+                                if filtered != newValue {
+                                    wheelDiameterText = filtered
+                                }
+                            }
                         }
                     }
 
@@ -122,37 +145,32 @@ struct SettingsView: View {
                         }
                     }
 
-                    // 📊 Magnetic Debug Info (using main shared viewModel now)
-                    VStack(alignment: .leading) {
-                        Text("Magnetic Field Strength (µT):")
-                            .font(.headline)
-                        HStack {
-                            Text("X: \(viewModel.currentField.x, specifier: "%.2f")")
-                                .monospacedDigit()
-                            Text("Y: \(viewModel.currentField.y, specifier: "%.2f")")
-                                .monospacedDigit()
-                            Text("Z: \(viewModel.currentField.z, specifier: "%.2f")")
+                    // 📊 Magnetic Debug Info
+                    Section {
+                        VStack(alignment: .leading) {
+                            Text("Magnetic Field Strength (µT):")
+                                .font(.headline)
+                            HStack {
+                                Text("X: \(viewModel.currentField.x, specifier: "%.2f")")
+                                    .monospacedDigit()
+                                Text("Y: \(viewModel.currentField.y, specifier: "%.2f")")
+                                    .monospacedDigit()
+                                Text("Z: \(viewModel.currentField.z, specifier: "%.2f")")
+                                    .monospacedDigit()
+                            }
+                            Text("Magnitude: \(viewModel.currentMagnitude, specifier: "%.2f")")
                                 .monospacedDigit()
                         }
-                        Text("Magnitude: \(viewModel.currentMagnitude, specifier: "%.2f")")
-                            .monospacedDigit()
+                        .padding()
                     }
-                    .padding()
 
                     Section {
                         Link("Documentation and help", destination: URL(string: "https://github.com/f0xdude/CaveDiveMap")!)
                             .foregroundColor(.blue)
                     }
                     
-                    
                     NavigationLink(destination: VisualMapper()) {
                         Text("(Experimental) Visual Mapper")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                    }
-
-                    NavigationLink(destination: AudioOdometer()) {
-                        Text("(Experimental) Audio Odometer")
                             .font(.headline)
                             .foregroundColor(.blue)
                     }
@@ -163,18 +181,48 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                     }
                 }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                viewModel.startMonitoring()
-                UIApplication.shared.isIdleTimerDisabled = true
-            }
-            .onDisappear {
-                //viewModel.stopMonitoring()
-                UIApplication.shared.isIdleTimerDisabled = false
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.inline)
+                .onAppear {
+                    viewModel.startMonitoring()
+                    UIApplication.shared.isIdleTimerDisabled = true
+                    // initialize text buffers
+                    lowThresholdText  = numberFormatter.string(from: NSNumber(value: viewModel.lowThreshold)) ?? ""
+                    highThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.highThreshold)) ?? ""
+                    let diameter      = viewModel.wheelCircumference / Double.pi
+                    wheelDiameterText = numberFormatter.string(from: NSNumber(value: diameter)) ?? ""
+                }
+                .onDisappear {
+                    UIApplication.shared.isIdleTimerDisabled = false
+                }
             }
         }
+    }
+    
+    // MARK: - Commit Helpers
+    private func commitLowThreshold() {
+        if let n = numberFormatter.number(from: lowThresholdText)?.doubleValue {
+            viewModel.lowThreshold = n
+        } else {
+            viewModel.lowThreshold = 0
+        }
+        lowThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.lowThreshold)) ?? ""
+    }
+
+    private func commitHighThreshold() {
+        if let n = numberFormatter.number(from: highThresholdText)?.doubleValue {
+            viewModel.highThreshold = n
+        } else {
+            viewModel.highThreshold = 0
+        }
+        highThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.highThreshold)) ?? ""
+    }
+
+    private func commitWheelDiameter() {
+        let parsed = numberFormatter.number(from: wheelDiameterText)?.doubleValue ?? 0
+        viewModel.wheelCircumference = parsed * Double.pi
+        let diameter = viewModel.wheelCircumference / Double.pi
+        wheelDiameterText = numberFormatter.string(from: NSNumber(value: diameter)) ?? ""
     }
 }
 

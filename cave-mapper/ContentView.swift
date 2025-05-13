@@ -184,7 +184,7 @@ struct ContentView: View {
                         right: 0.0,
                         up: 0.0,
                         down: 0.0,
-                        rtype: magnetometer.odometryMode == .magnetic ? "magnetic" : "acoustic"
+                        rtype: "auto"
                     )
 
                     pointNumber += 1
@@ -226,8 +226,7 @@ struct ContentView: View {
     private func resetMonitoringData() {
         pointNumber = 0
         magnetometer.revolutions = 0
-        magnetometer.magneticFieldHistory = []
-        magnetometer.clickDetector?.clickCount = 0
+        magnetometer.magneticFieldHistory = []       
         DataManager.resetAllData()
         showResetSuccessAlert = true
     }

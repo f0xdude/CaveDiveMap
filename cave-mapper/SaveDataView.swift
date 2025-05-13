@@ -10,8 +10,11 @@ enum ParameterType: String, CaseIterable {
     case down = "Down"
 }
 
+
+
 struct SaveDataView: View {
-    @State private var pointNumber: Int = DataManager.loadPointNumber() 
+    
+    @State private var pointNumber: Int = DataManager.loadPointNumber()
     @ObservedObject var magnetometer: MagnetometerViewModel
     @State private var depth: Double = DataManager.loadLastSavedDepth() // Initialize with last saved depth
     @State private var distance: Double = DataManager.loadLastSavedDistance() // Initialize with last saved distance
@@ -90,15 +93,15 @@ struct SaveDataView: View {
                             .font(.title2)
                     }
                 }
-                .highPriorityGesture(
-                    LongPressGesture(minimumDuration: 3.0)
-                        .updating($isLongPressing) { currentState, gestureState, transaction in
-                            gestureState = currentState
-                        }
-                        .onEnded { _ in
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                )
+//                .highPriorityGesture(
+//                    LongPressGesture(minimumDuration: 3.0)
+//                        .updating($isLongPressing) { currentState, gestureState, transaction in
+//                            gestureState = currentState
+//                        }
+//                        .onEnded { _ in
+//                            presentationMode.wrappedValue.dismiss()
+//                        }
+//                )
                 .offset(x: 120, y: 200)
             }
         }

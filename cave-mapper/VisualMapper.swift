@@ -17,16 +17,6 @@ struct VisualMapper: UIViewRepresentable {
         // 2️⃣ Only show feature points in the debug overlay
         arView.debugOptions = [.showFeaturePoints]
 
-        // 3️⃣ (Optional) keep your existing renderOptions to cut other effects
-        arView.renderOptions = [
-          .disableMotionBlur,
-          .disableDepthOfField,
-          .disablePersonOcclusion,
-          .disableGroundingShadows,
-          .disableFaceMesh,
-          .disableHDR
-        ]
-
         
         //arView.debugOptions.insert(.showFeaturePoints)
         //arView.debugOptions.insert(.showSceneUnderstanding)
@@ -208,7 +198,6 @@ struct VisualMapper: UIViewRepresentable {
         private var loopClosureEnabled: Bool = true
         var stopButton: UIButton?
         private var idleTimerEnforcer: Timer?
-        private var previousPassageEstimates: [String: Float] = [:]
        
         /// Map each ARKit feature ID to its latest world-space position
         private var featurePointDict: [UInt64: SIMD3<Float>] = [:]
@@ -249,9 +238,6 @@ struct VisualMapper: UIViewRepresentable {
                 self.updateTrackingStateLabel(camera.trackingState)
             }
             
-//            if case .limited(.relocalizing) = camera.trackingState {
-//                featurePointDict.removeAll()
-//            }
         }
 
         func updateTrackingStateLabel(_ trackingState: ARCamera.TrackingState) {
@@ -290,7 +276,7 @@ struct VisualMapper: UIViewRepresentable {
           UIApplication.shared.isIdleTimerDisabled = true
           guard isSessionActive else { return }
 
-            // Throttle to 0.5s to
+          // Throttle to 0.5s to save cpu/battery
           let t = frame.timestamp
           guard t - lastUpdateTime >= updateInterval else { return }
           lastUpdateTime = t
