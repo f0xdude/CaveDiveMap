@@ -120,6 +120,10 @@ struct ContentView: View {
                         }
                         .offset(x: 70, y: -70)
                         .padding(.bottom, 20)
+                        
+                        .fullScreenCover(isPresented: $showCameraView) {
+                                    VisualMapper()
+                                }
                     }
                     .padding(.bottom)
                 }

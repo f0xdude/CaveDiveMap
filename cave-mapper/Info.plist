@@ -2,17 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>The app needs camera access so the user can take photos on reference points along the survey. Each photo is saved in the gallery with embedded survey data.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We need to be able to save the photos from the survey to the gallery.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need access to microphone to use audio based odometer. ( detecting the wheel&apos;s rotation using a ratchet based clicker )</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Needed to connect to BLE sonar device</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app requires access to your photo library to display your photos.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Needed to communicate with BLE sonar device</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 </dict>
 </plist>

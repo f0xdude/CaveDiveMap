@@ -8,6 +8,26 @@ struct VisualMapper: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
 
+
+        
+        // 1️⃣ Turn off the real‐world feed by painting the background a solid color
+        //    (you can pick .black, .white, any UIColor… or even .clear if you want translucency)
+        arView.environment.background = .color(.black)
+
+        // 2️⃣ Only show feature points in the debug overlay
+        arView.debugOptions = [.showFeaturePoints]
+
+        // 3️⃣ (Optional) keep your existing renderOptions to cut other effects
+        arView.renderOptions = [
+          .disableMotionBlur,
+          .disableDepthOfField,
+          .disablePersonOcclusion,
+          .disableGroundingShadows,
+          .disableFaceMesh,
+          .disableHDR
+        ]
+
+        
         //arView.debugOptions.insert(.showFeaturePoints)
         //arView.debugOptions.insert(.showSceneUnderstanding)
         arView.renderOptions = [.disableMotionBlur,
@@ -19,10 +39,36 @@ struct VisualMapper: UIViewRepresentable {
 
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = []
-        config.environmentTexturing = .none
+        config.environmentTexturing = .automatic
         config.sceneReconstruction = []  // if not using scene mesh
         config.isLightEstimationEnabled = false
         config.frameSemantics = []        // disable body/person detection
+        
+        // 1) Build and type your formats array explicitly
+        let formats: [ARWorldTrackingConfiguration.VideoFormat] =
+            ARWorldTrackingConfiguration.supportedVideoFormats
+
+        // 2) Pick the ultra-wide or wide-angle format
+        var chosenFormat: ARWorldTrackingConfiguration.VideoFormat?
+        for f in formats {
+            let camType = f.captureDeviceType
+            if camType == .builtInUltraWideCamera || camType == .builtInWideAngleCamera {
+                chosenFormat = f
+                break
+            }
+        }
+
+        // 3) Assign it (if we found one)
+        if let wideFormat = chosenFormat {
+            config.videoFormat = wideFormat
+            print("▶️ Using camera: \(wideFormat.captureDeviceType.rawValue), " +
+                  "resolution: \(wideFormat.imageResolution)")
+        } else {
+            print("ℹ️ Wide-angle camera not available, using default.")
+        }
+
+        
+        
         
         arView.session.run(config)
 
@@ -70,8 +116,8 @@ struct VisualMapper: UIViewRepresentable {
         arView.addSubview(exportCSVButton)
 
         NSLayoutConstraint.activate([
-            exportCSVButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 10),
-            exportCSVButton.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20),
+            exportCSVButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 55),
+            exportCSVButton.leadingAnchor.constraint(equalTo: arView.trailingAnchor, constant: -120),
             exportCSVButton.widthAnchor.constraint(equalToConstant: 100),
             exportCSVButton.heightAnchor.constraint(equalToConstant: 36)
         ])
@@ -163,6 +209,12 @@ struct VisualMapper: UIViewRepresentable {
         var stopButton: UIButton?
         private var idleTimerEnforcer: Timer?
         private var previousPassageEstimates: [String: Float] = [:]
+       
+        /// Map each ARKit feature ID to its latest world-space position
+        private var featurePointDict: [UInt64: SIMD3<Float>] = [:]
+
+        
+        
 
 
 
@@ -179,6 +231,7 @@ struct VisualMapper: UIViewRepresentable {
             locationManager.headingFilter = 1
             locationManager.startUpdatingHeading()
             locationManager.requestWhenInUseAuthorization()
+
         }
 
         
@@ -195,6 +248,10 @@ struct VisualMapper: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.updateTrackingStateLabel(camera.trackingState)
             }
+            
+//            if case .limited(.relocalizing) = camera.trackingState {
+//                featurePointDict.removeAll()
+//            }
         }
 
         func updateTrackingStateLabel(_ trackingState: ARCamera.TrackingState) {
@@ -229,35 +286,30 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         
-        
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
-            UIApplication.shared.isIdleTimerDisabled = true
+          UIApplication.shared.isIdleTimerDisabled = true
+          guard isSessionActive else { return }
 
-            guard isSessionActive else { return }
-            let currentTime = frame.timestamp
-            guard currentTime - lastUpdateTime >= updateInterval else { return }
-            lastUpdateTime = currentTime
+            // Throttle to 0.5s to
+          let t = frame.timestamp
+          guard t - lastUpdateTime >= updateInterval else { return }
+          lastUpdateTime = t
 
-            let transform = frame.camera.transform
-            let position = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
-
-            DispatchQueue.main.async {
-                // Place a marker only if we've moved enough
-                if let previous = self.previousPosition {
-                    let distance = simd_distance(previous, position)
-                    if distance >= 0.25 { // place markers every 25cm
-                        self.placeMarker(at: position)
-                    }
-                } else {
-                    // Always place the first marker
-                    self.placeMarker(at: position)
-                }
+          // now both features AND markers only update every 0.5 s
+          if let raw = frame.rawFeaturePoints {
+            for (i, id) in raw.identifiers.enumerated() {
+              featurePointDict[id] = raw.points[i]
             }
+          }
 
-        // LRUD raycast method test
-            self.estimatePassageSizeUsingFeaturePoints()
-
+          let transform = frame.camera.transform
+          let position = SIMD3<Float>(transform.columns.3.x,
+                                      transform.columns.3.y,
+                                      transform.columns.3.z)
+          placeMarker(at: position)
         }
+
+        
         
         
 
@@ -306,25 +358,37 @@ struct VisualMapper: UIViewRepresentable {
             guard let arView = arView,
                   let label = arView.viewWithTag(104) as? UILabel else { return }
 
-            let recent = pathPoints.suffix(10)
-            guard !recent.isEmpty else {
+            guard pathPoints.count >= 2 else {
                 label.text = "Drift: --"
                 label.textColor = .white
                 return
             }
-
-            let avgDrift = recent.map { $0.drift }.reduce(0, +) / Float(recent.count)
-            label.text = String(format: "Drift: %.2f m", avgDrift)
-
-            // Color-code based on accuracy
-            if avgDrift < 0.05 {
+            
+            let start = pathPoints.first!.position
+            let end = pathPoints.last!.position
+            
+            let straightLineDistance = simd_distance(start, end)
+            let traveledDistance = totalDistance
+            
+            let driftAmount = traveledDistance - straightLineDistance
+            
+            if driftAmount <= 0 {
+                label.text = "Drift: 0.00 m"
                 label.textColor = .green
-            } else if avgDrift < 0.15 {
+                return
+            }
+            
+            label.text = String(format: "Drift: %.2f m", driftAmount)
+            
+            if driftAmount < 0.2 {
+                label.textColor = .green
+            } else if driftAmount < 0.5 {
                 label.textColor = .orange
             } else {
                 label.textColor = .red
             }
         }
+
 
 
         func drawCorrectionLine(from: SIMD3<Float>, to: SIMD3<Float>) {
@@ -404,9 +468,6 @@ struct VisualMapper: UIViewRepresentable {
 
             arrowEntity.look(at: lookAtTarget, from: position, relativeTo: nil)
 
-            
-            
-            
             // Slight upward offset so it doesn't clip the surface
             arrowEntity.position = SIMD3<Float>(0, 0.015, 0)
 
@@ -448,12 +509,10 @@ struct VisualMapper: UIViewRepresentable {
 
             updateLabel()
             updateMaxDepthLabel()
-
+            
             previousAnchor = anchor
             previousPosition = position
         }
-
-
 
 
 
@@ -512,81 +571,89 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         @objc func exportTapped() {
-            guard let arView = arView,
-                  let currentFrame = arView.session.currentFrame else {
-                print("No ARFrame available.")
-                return
-            }
+            guard let arView = arView else { return }
 
-            let filename = FileManager.default.temporaryDirectory.appendingPathComponent("cave_pointcloud_colored.ply")
+            // snapshot your data
+            let pathSnapshot = self.pathPoints
+            let featureSnapshot = Array(self.featurePointDict.values)
 
-            struct ColoredPoint {
-                var x: Float
-                var y: Float
-                var z: Float
-                var r: UInt8
-                var g: UInt8
-                var b: UInt8
-                var depth: Float?
-                var heading: Double?
-            }
-
-            var allPoints: [ColoredPoint] = []
-
-            for point in pathPoints {
-                let p = point.position
-                allPoints.append(ColoredPoint(x: p.x, y: p.y, z: p.z, r: 255, g: 255, b: 0, depth: point.depth, heading: point.heading))
-            }
-
-            if let rawFeatures = currentFrame.rawFeaturePoints {
-                for p in rawFeatures.points {
-                    allPoints.append(ColoredPoint(x: p.x, y: p.y, z: p.z, r: 0, g: 255, b: 255))
+            DispatchQueue.global(qos: .userInitiated).async {
+                // 1) prepare file URL & stream
+                let url = FileManager.default.temporaryDirectory
+                                 .appendingPathComponent("cave_pointcloud_streamed.ply")
+                guard let stream = OutputStream(url: url, append: false) else {
+                    print("❌ Could not open OutputStream")
+                    return
                 }
-            }
+                stream.open()
+                defer { stream.close() }
 
-            var plyString = "ply\nformat ascii 1.0\n"
-            plyString += "element vertex \(allPoints.count)\n"
-            plyString += "property float x\n"
-            plyString += "property float y\n"
-            plyString += "property float z\n"
-            plyString += "property uchar red\n"
-            plyString += "property uchar green\n"
-            plyString += "property uchar blue\n"
-            plyString += "property float depth\n"
-            plyString += "property float heading\n"
-            plyString += "end_header\n"
+                // 2) write header
+                let header = """
+                ply
+                format ascii 1.0
+                element vertex \(pathSnapshot.count + featureSnapshot.count)
+                property float x
+                property float y
+                property float z
+                property uchar red
+                property uchar green
+                property uchar blue
+                property float depth
+                property float heading
+                end_header
 
-            for point in allPoints {
-                let depthStr = point.depth != nil ? String(format: "%.2f", point.depth!) : "-1.0"
-                let headingStr = point.heading != nil ? String(format: "%.0f", point.heading!) : "-1"
-                plyString += "\(point.x) \(point.y) \(point.z) \(point.r) \(point.g) \(point.b) \(depthStr) \(headingStr)\n"
-            }
+                """
+                if let hd = header.data(using: .utf8) {
+                    _ = hd.withUnsafeBytes { buf in
+                        stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                     maxLength: buf.count)
+                    }
+                }
 
-            do {
-                try plyString.write(to: filename, atomically: true, encoding: .utf8)
-                print("Colored PLY with depth exported to: \(filename)")
-
-                let vc = UIActivityViewController(activityItems: [filename], applicationActivities: nil)
-                vc.modalPresentationStyle = .automatic
-
-                DispatchQueue.main.async {
-                    if let topController = arView.window?.rootViewController {
-                        var presented = topController
-                        while let next = presented.presentedViewController {
-                            presented = next
-                        }
-                        if !presented.isBeingPresented && presented.presentedViewController == nil {
-                            presented.present(vc, animated: true)
-                        } else {
-                            print("Export aborted: another view controller is already being presented.")
+                // 3) write each waypoint (yellow)
+                for wp in pathSnapshot {
+                    let line = String(
+                      format: "%.4f %.4f %.4f 255 255 0 %.2f %.0f\n",
+                      wp.position.x, wp.position.y, wp.position.z,
+                      wp.depth, wp.heading
+                    )
+                    if let d = line.data(using: .utf8) {
+                        _ = d.withUnsafeBytes { buf in
+                            stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                         maxLength: buf.count)
                         }
                     }
                 }
 
-            } catch {
-                print("Failed to export PLY: \(error)")
+                // 4) write each feature point (cyan)
+                for fp in featureSnapshot {
+                    let line = String(
+                      format: "%.4f %.4f %.4f 0 255 255 -1.0 -1\n",
+                      fp.x, fp.y, fp.z
+                    )
+                    if let d = line.data(using: .utf8) {
+                        _ = d.withUnsafeBytes { buf in
+                            stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                         maxLength: buf.count)
+                        }
+                    }
+                }
+
+                // 5) back to main to present UIActivityViewController
+                DispatchQueue.main.async {
+                    let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+                    vc.modalPresentationStyle = .automatic
+                    var top = arView.window!.rootViewController!
+                    while let next = top.presentedViewController { top = next }
+                    top.present(vc, animated: true)
+                }
             }
         }
+
+
+        
+        
 
         @objc func resetSession() {
             guard let arView = arView else { return }
@@ -595,37 +662,48 @@ struct VisualMapper: UIViewRepresentable {
             previousAnchor = nil
             totalDistance = 0.0
             pathPoints.removeAll()
+            featurePointDict.removeAll()
             isSessionActive = true
             updateLabel()
             updateMaxDepthLabel()
+            
         }
 
         @objc func stopSession() {
-            isSessionActive.toggle()
-            let newTitle = isSessionActive ? "STOP" : "START"
-            stopButton?.setTitle(newTitle, for: .normal)
-            
-            idleTimerEnforcer?.invalidate()
-            idleTimerEnforcer = nil
+            if isSessionActive {
+                // First tap: Stop mapping, but keep session running
+                saveCSVToDisk()
+                
+                isSessionActive = false
 
+                DispatchQueue.main.async { [weak self] in
+                    self?.stopButton?.setTitle("EXIT", for: .normal)
+                }
+            } else {
+                // Second tap: Exit the view
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self,
+                          let vc = self.arView?.parentViewController() else { return }
+                    vc.dismiss(animated: true, completion: nil)
+                }
+            }
         }
+
+
+
         
         @objc func exportCSVTapped() {
             let filename = FileManager.default.temporaryDirectory.appendingPathComponent("path_data.csv")
-            var csv = "From,To,Distance,Heading\n"
+            var csv = "Index,X,Y,Z,Distance,Heading,Depth\n"
 
-            for i in 1..<pathPoints.count {
-                let from = i
-                let to = i + 1
-                let segmentDist = pathPoints[i].distance - pathPoints[i - 1].distance
-                let heading = Int(round(pathPoints[i].heading))
-                let line = "\(from),\(to),\(String(format: "%.2f", segmentDist))m,\(heading)\n"
+            for (index, point) in pathPoints.enumerated() {
+                let line = "\(index),\(point.position.x),\(point.position.y),\(point.position.z),\(String(format: "%.2f", point.distance)),\(String(format: "%.0f", point.heading)),\(String(format: "%.2f", point.depth))\n"
                 csv += line
             }
 
             do {
                 try csv.write(to: filename, atomically: true, encoding: .utf8)
-                print("✅ CSV exported to: \(filename)")
+                print("✅ CSV with XYZ exported to: \(filename)")
 
                 let vc = UIActivityViewController(activityItems: [filename], applicationActivities: nil)
                 vc.modalPresentationStyle = .automatic
@@ -636,7 +714,7 @@ struct VisualMapper: UIViewRepresentable {
                         while let next = presented.presentedViewController {
                             presented = next
                         }
-                        presented.present(vc, animated: true)
+                        presented.safePresent(vc)
                     }
                 }
             } catch {
@@ -645,78 +723,62 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         
-        func estimatePassageSizeUsingFeaturePoints() {
-            guard let arView = arView,
-                  let frame = arView.session.currentFrame,
-                  let label = arView.viewWithTag(101) as? UILabel else { return }
+       
 
-            let cameraTransform = frame.camera.transform
-            let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
 
-            let directions: [(label: String, vector: SIMD3<Float>)] = [
-                ("Left",  SIMD3<Float>(-1, 0, 0)),
-                ("Right", SIMD3<Float>(1, 0, 0)),
-                ("Up",    SIMD3<Float>(0, 1, 0)),
-                ("Down",  SIMD3<Float>(0, -1, 0))
-            ]
-
-            guard let points = frame.rawFeaturePoints?.points else { return }
-
-            var smoothedDistances: [String: Float] = [:]
-            let maxAngleRange: [Float] = [Float.pi / 12, Float.pi / 8, Float.pi / 6, Float.pi / 4]  // 15°, 22°, 30°, 45°
-            let smoothingFactor: Float = 0.6
-
-            for (labelName, localDir) in directions {
-                let worldVec4 = cameraTransform * SIMD4<Float>(localDir.x, localDir.y, localDir.z, 0)
-                let worldDir = simd_normalize(SIMD3<Float>(worldVec4.x, worldVec4.y, worldVec4.z))
-
-                var closestDistance: Float = .greatestFiniteMagnitude
-                var bestAngle: Float = .pi / 12  // Start narrow
-                var found = false
-
-                for angleLimit in maxAngleRange {
-                    for point in points {
-                        let toPoint = point - cameraPosition
-                        let distance = simd_length(toPoint)
-                        let angle = acos(simd_dot(simd_normalize(toPoint), worldDir))
-
-                        if angle < angleLimit && distance < closestDistance {
-                            closestDistance = distance
-                            bestAngle = angleLimit
-                            found = true
-                        }
-                    }
-                    if found { break } // Stop widening once we find a valid hit
+        /// Write the current pathPoints out to a CSV in the app's Documents folder
+            private func saveCSVToDisk() {
+                // 1) Build the CSV string
+                var csv = "From,To,Distance,Heading\n"
+                for i in 1..<pathPoints.count {
+                    let from = i
+                    let to   = i + 1
+                    let segmentDist = pathPoints[i].distance - pathPoints[i - 1].distance
+                    let heading     = Int(round(pathPoints[i].heading))
+                    csv += "\(from),\(to),\(String(format: "%.2f", segmentDist))m,\(heading)\n"
                 }
 
-                // Keep previous distance if no feature found
-                let newDistance: Float = closestDistance == .greatestFiniteMagnitude ? -1 : closestDistance
+                // 2) File URL in Documents
+                let docs = FileManager.default
+                           .urls(for: .documentDirectory, in: .userDomainMask)[0]
+                let fileURL = docs.appendingPathComponent("path_data.csv")
 
-                // Smooth distance using exponential moving average
-                if let previous = previousPassageEstimates[labelName], newDistance > 0 {
-                    smoothedDistances[labelName] = smoothingFactor * newDistance + (1 - smoothingFactor) * previous
-                } else {
-                    smoothedDistances[labelName] = newDistance
+                // 3) Write it
+                do {
+                    try csv.write(to: fileURL, atomically: true, encoding: .utf8)
+                    print("✅ Saved CSV to: \(fileURL.path)")
+                } catch {
+                    print("❌ Failed to save CSV: \(error)")
                 }
-
-                // Update stored value
-                previousPassageEstimates[labelName] = smoothedDistances[labelName]
             }
 
-            // Format label
-            let distStr = String(format: "Distance: %.2f m", totalDistance)
-            let headingStr = currentHeading != nil ? String(format: "Heading: %.0f°", currentHeading!.magneticHeading) : "Heading: --"
+        
+        
+    }
+}
 
-            let left = smoothedDistances["Left"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
-            let right = smoothedDistances["Right"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
-            let up = smoothedDistances["Up"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
-            let down = smoothedDistances["Down"].map { $0 > 0 ? String(format: "%.2f", $0) : "--" } ?? "--"
 
-            label.text = "\(distStr)\n\(headingStr)\nL:\(left) R:\(right) U:\(up) D:\(down)"
+
+extension UIView {
+    /// Walks the responder chain until it finds a UIViewController
+    func parentViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let r = responder {
+            if let vc = r as? UIViewController {
+                return vc
+            }
+            responder = r.next
         }
+        return nil
+    }
+}
 
-
-        
-        
+extension UIViewController {
+    func safePresent(_ viewController: UIViewController, animated: Bool = true) {
+        if self.presentedViewController == nil {
+            self.present(viewController, animated: animated, completion: nil)
+        } else {
+            print("⚠️ Skipping present: another view controller is already shown.")
+        }
     }
 }
