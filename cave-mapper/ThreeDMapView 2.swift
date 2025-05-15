@@ -242,6 +242,7 @@ struct ThreeDCaveMapView: View {
         }
     }
     
+    
     private func createCenterPath(parentNode: SCNNode, manualData: [SavedData]) {
         // Pre-process the path to create a smoother centerline with Catmull-Rom spline
         var smoothedPathPoints: [SCNVector3] = []

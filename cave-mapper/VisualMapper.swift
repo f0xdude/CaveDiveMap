@@ -316,7 +316,6 @@ struct VisualMapper: UIViewRepresentable {
 
                     print("\u{1F501} Loop closure detected at index \(i)")
                     showLoopClosureIndicator(at: currentPosition)
-                    drawCorrectionLine(from: currentPosition, to: prev.position)
                     correctDriftSmoothly(from: i, to: pathPoints.count - 1, currentPos: currentPosition, matchedPos: prev.position)
                     return true
                 }
@@ -377,30 +376,7 @@ struct VisualMapper: UIViewRepresentable {
 
 
 
-        func drawCorrectionLine(from: SIMD3<Float>, to: SIMD3<Float>) {
-            guard let arView = arView else { return }
-            let vector = to - from
-            let distance = simd_length(vector)
-            let midPoint = (from + to) / 2
-
-            let cylinder = MeshResource.generateCylinder(height: distance, radius: 0.002)
-            let material = UnlitMaterial(color: .magenta)
-            let entity = ModelEntity(mesh: cylinder, materials: [material])
-            let axis = simd_normalize(simd_cross(SIMD3<Float>(0, 1, 0), vector))
-            let angle = acos(simd_dot(simd_normalize(vector), SIMD3<Float>(0, 1, 0)))
-            if angle.isFinite {
-                entity.transform.rotation = simd_quatf(angle: angle, axis: axis)
-            }
-            entity.position = .zero
-
-            let container = ModelEntity()
-            container.position = midPoint
-            container.addChild(entity)
-
-            let anchor = AnchorEntity(world: midPoint)
-            anchor.addChild(container)
-            arView.scene.addAnchor(anchor)
-        }
+        
 
         func showLoopClosureIndicator(at position: SIMD3<Float>) {
             guard let arView = arView else { return }
@@ -415,6 +391,15 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         func placeMarker(at position: SIMD3<Float>) {
+            
+            // Only place markers if distance from previous position is over 50cm
+            let threshold: Float = 0.3   // 30 cm
+            if let prev = previousPosition,
+               simd_distance(position, prev) < threshold {
+              return
+            }
+            
+            
             guard let arView = arView else { return }
 
             let heading = currentHeading?.magneticHeading ?? -1
@@ -475,7 +460,7 @@ struct VisualMapper: UIViewRepresentable {
                         let prevDir = simd_normalize(previous - pathPoints[pathPoints.count - 2].position)
                         let newDir = simd_normalize(displacement)
                         let directionChange = simd_dot(prevDir, newDir)
-                        shouldCountDistance = directionChange > 0.7
+                        shouldCountDistance = directionChange > 0.4
                     } else {
                         shouldCountDistance = true
                     }

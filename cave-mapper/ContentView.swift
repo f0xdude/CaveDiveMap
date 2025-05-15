@@ -212,14 +212,14 @@ struct ContentView: View {
             .navigationDestination(isPresented: $navigateToSaveDataView) {
                 SaveDataView(magnetometer: magnetometer)
             }
-            .fullScreenCover(isPresented: $showCameraView) {
-                CameraView(
-                    pointNumber: pointNumber,
-                    distance: magnetometer.dynamicDistanceInMeters,
-                    heading: magnetometer.currentHeading?.trueHeading ?? 0,
-                    depth: 0.00
-                )
-            }
+//            .fullScreenCover(isPresented: $showCameraView) {
+//                CameraView(
+//                    pointNumber: pointNumber,
+//                    distance: magnetometer.dynamicDistanceInMeters,
+//                    heading: magnetometer.currentHeading?.trueHeading ?? 0,
+//                    depth: 0.00
+//                )
+//            }
         }
     }
 
