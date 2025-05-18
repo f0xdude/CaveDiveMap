@@ -224,10 +224,37 @@ struct ContentView: View {
     }
 
     private func resetMonitoringData() {
+        // 1) dump out CSV first
+            exportAllDataAsCSV()
+        
         pointNumber = 0
         magnetometer.revolutions = 0
         magnetometer.magneticFieldHistory = []       
         DataManager.resetAllData()
         showResetSuccessAlert = true
     }
+    
+    private func exportAllDataAsCSV() {
+        let csv = DataManager.exportCSV()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = formatter.string(from: Date())
+        let fileName = "survey_\(timestamp).csv"
+
+        if let docs = FileManager.default
+                           .urls(for: .documentDirectory, in: .userDomainMask)
+                           .first
+        {
+            let fileURL = docs.appendingPathComponent(fileName)
+            do {
+                try csv.write(to: fileURL, atomically: true, encoding: .utf8)
+                print("✅ CSV exported to \(fileURL.path)")
+            } catch {
+                print("❌ Error exporting CSV: \(error)")
+            }
+        }
+    }
+
+    
+    
 }

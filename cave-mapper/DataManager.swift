@@ -54,6 +54,32 @@ class DataManager {
         let savedDataArray = loadSavedData()
         return savedDataArray.last?.distance ?? 0.0
     }
+    
+    
+    /// Walks through *all* saved `SavedData` records (via `loadSavedData()`) and emits a CSV string.
+    static func exportCSV() -> String {
+        let allData = loadSavedData()   // ← your existing method
+        // 1) Header row
+        var csv = "recordNumber,distance,heading,depth,left,right,up,down,rtype\n"
+        // 2) Each line for each record
+        for d in allData {
+            csv += [
+                "\(d.recordNumber)",
+                "\(d.distance)",
+                "\(d.heading)",
+                "\(d.depth)",
+                "\(d.left)",
+                "\(d.right)",
+                "\(d.up)",
+                "\(d.down)",
+                d.rtype
+            ].joined(separator: ",")
+            csv += "\n"
+        }
+        return csv
+    }
+    
+    
 }
 
 // Updated SavedData struct to include new parameters.

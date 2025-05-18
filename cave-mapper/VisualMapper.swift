@@ -5,6 +5,9 @@ import CoreLocation
 
 
 struct VisualMapper: UIViewRepresentable {
+    /// <#Description#>
+    /// - Parameter context: <#context description#>
+    /// - Returns: <#description#>
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
 
@@ -12,14 +15,18 @@ struct VisualMapper: UIViewRepresentable {
         
         // 1️⃣ Turn off the real‐world feed by painting the background a solid color
         //    (you can pick .black, .white, any UIColor… or even .clear if you want translucency)
-        arView.environment.background = .color(.black)
+        arView.environment.background = .color(.clear)
 
         // 2️⃣ Only show feature points in the debug overlay
         arView.debugOptions = [.showFeaturePoints]
 
         
-        //arView.debugOptions.insert(.showFeaturePoints)
-        //arView.debugOptions.insert(.showSceneUnderstanding)
+        // show only the reconstructed mesh
+//        
+//        arView.environment.sceneUnderstanding.options.insert(.occlusion)
+//        arView.debugOptions.insert(.showSceneUnderstanding)
+        
+        
         arView.renderOptions = [.disableMotionBlur,
                                 .disableDepthOfField,
                                 .disablePersonOcclusion,
@@ -30,7 +37,7 @@ struct VisualMapper: UIViewRepresentable {
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = []
         config.environmentTexturing = .automatic
-        config.sceneReconstruction = []  // if not using scene mesh
+        config.sceneReconstruction =   [] //.mesh // []  // if not using scene mesh .mesh uses lidar
         config.isLightEstimationEnabled = false
         config.frameSemantics = []        // disable body/person detection
         
@@ -68,7 +75,7 @@ struct VisualMapper: UIViewRepresentable {
         let label = UILabel()
         label.textColor = .white
         label.numberOfLines = 3
-        label.font = UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+        label.font = UIFont.monospacedDigitSystemFont(ofSize: 24, weight: .medium)
         label.translatesAutoresizingMaskIntoConstraints = false
         label.tag = 101
         arView.addSubview(label)
@@ -78,50 +85,18 @@ struct VisualMapper: UIViewRepresentable {
             label.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20)
         ])
 
-        let exportButton = UIButton(type: .system)
-        exportButton.setTitle("Export PLY", for: .normal)
-        exportButton.setTitleColor(.white, for: .normal)
-        exportButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.8)
-        exportButton.layer.cornerRadius = 8
-        exportButton.translatesAutoresizingMaskIntoConstraints = false
-        exportButton.addTarget(context.coordinator, action: #selector(Coordinator.exportTapped), for: .touchUpInside)
-        arView.addSubview(exportButton)
         
 
-        NSLayoutConstraint.activate([
-            exportButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 10),
-            exportButton.trailingAnchor.constraint(equalTo: arView.trailingAnchor, constant: -20),
-            exportButton.widthAnchor.constraint(equalToConstant: 100),
-            exportButton.heightAnchor.constraint(equalToConstant: 36)
-        ])
-        
-        
-        let exportCSVButton = UIButton(type: .system)
-        exportCSVButton.setTitle("Export CSV", for: .normal)
-        exportCSVButton.setTitleColor(.white, for: .normal)
-        exportCSVButton.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.8)
-        exportCSVButton.layer.cornerRadius = 8
-        exportCSVButton.translatesAutoresizingMaskIntoConstraints = false
-        exportCSVButton.addTarget(context.coordinator, action: #selector(Coordinator.exportCSVTapped), for: .touchUpInside)
-        arView.addSubview(exportCSVButton)
 
-        NSLayoutConstraint.activate([
-            exportCSVButton.topAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.topAnchor, constant: 55),
-            exportCSVButton.leadingAnchor.constraint(equalTo: arView.trailingAnchor, constant: -120),
-            exportCSVButton.widthAnchor.constraint(equalToConstant: 100),
-            exportCSVButton.heightAnchor.constraint(equalToConstant: 36)
-        ])
-
-
-        let resetButton = UIButton(type: .system)
-        resetButton.setTitle("RESET", for: .normal)
-        resetButton.setTitleColor(.white, for: .normal)
-        resetButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
-        resetButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
-        resetButton.layer.cornerRadius = 35
-        resetButton.translatesAutoresizingMaskIntoConstraints = false
-        resetButton.addTarget(context.coordinator, action: #selector(Coordinator.resetSession), for: .touchUpInside)
-        arView.addSubview(resetButton)
+//        let resetButton = UIButton(type: .system)
+//        resetButton.setTitle("RESET", for: .normal)
+//        resetButton.setTitleColor(.white, for: .normal)
+//        resetButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
+//        resetButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
+//        resetButton.layer.cornerRadius = 35
+//        resetButton.translatesAutoresizingMaskIntoConstraints = false
+//        resetButton.addTarget(context.coordinator, action: #selector(Coordinator.resetSession), for: .touchUpInside)
+//        arView.addSubview(resetButton)
 
         let stopButton = UIButton(type: .system)
         context.coordinator.stopButton = stopButton
@@ -164,10 +139,10 @@ struct VisualMapper: UIViewRepresentable {
 
         
         NSLayoutConstraint.activate([
-            resetButton.trailingAnchor.constraint(equalTo: arView.centerXAnchor, constant: -40),
-            resetButton.bottomAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.bottomAnchor, constant: -90),
-            resetButton.widthAnchor.constraint(equalToConstant: 70),
-            resetButton.heightAnchor.constraint(equalToConstant: 70),
+//            resetButton.trailingAnchor.constraint(equalTo: arView.centerXAnchor, constant: -40),
+//            resetButton.bottomAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.bottomAnchor, constant: -90),
+//            resetButton.widthAnchor.constraint(equalToConstant: 70),
+//            resetButton.heightAnchor.constraint(equalToConstant: 70),
 
             stopButton.leadingAnchor.constraint(equalTo: arView.centerXAnchor, constant: -30),
             stopButton.bottomAnchor.constraint(equalTo: arView.safeAreaLayoutGuide.bottomAnchor, constant: -30),
@@ -202,7 +177,13 @@ struct VisualMapper: UIViewRepresentable {
         /// Map each ARKit feature ID to its latest world-space position
         private var featurePointDict: [UInt64: SIMD3<Float>] = [:]
 
-        
+        ///  Add a container anchor and a lookup for already-drawn points
+        private var featurePointAnchor = AnchorEntity()
+        private var featurePointEntities: [UInt64: ModelEntity] = [:]
+        private let samplingRate = 5
+        private let maxPoints     = 1_000
+        private var liveVisualization: Bool = false // Enableds or disables live pointcloud visualization ( cpu heavy )
+
         
 
 
@@ -220,6 +201,9 @@ struct VisualMapper: UIViewRepresentable {
             locationManager.headingFilter = 1
             locationManager.startUpdatingHeading()
             locationManager.requestWhenInUseAuthorization()
+            
+            //  Immediately add the container anchor to the scene
+            arView.scene.addAnchor(featurePointAnchor)
 
         }
 
@@ -280,12 +264,20 @@ struct VisualMapper: UIViewRepresentable {
           let t = frame.timestamp
           guard t - lastUpdateTime >= updateInterval else { return }
           lastUpdateTime = t
+            
+           
 
           // now both features AND markers only update every 0.5 s
           if let raw = frame.rawFeaturePoints {
             for (i, id) in raw.identifiers.enumerated() {
               featurePointDict[id] = raw.points[i]
             }
+              
+              if liveVisualization
+              {
+                  visualizeFeaturePoints(raw)
+              }
+              
           }
 
           let transform = frame.camera.transform
@@ -296,6 +288,9 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         
+        
+        
+       
         
         
 
@@ -491,8 +486,9 @@ struct VisualMapper: UIViewRepresentable {
             guard let arView = arView,
                   let label = arView.viewWithTag(101) as? UILabel else { return }
             let distanceStr = String(format: "Distance: %.2f m", totalDistance)
-            let headingStr = currentHeading != nil ? String(format: "Heading: %.0f\u{00B0}", currentHeading!.magneticHeading) : "Heading: --"
-            label.text = "\(distanceStr)\n\(headingStr)"
+           // let headingStr = currentHeading != nil ? String(format: "Heading: %.0f\u{00B0}", currentHeading!.magneticHeading) : "Heading: --"
+            //label.text = "\(distanceStr)\n\(headingStr)"
+            label.text = "\(distanceStr)"
         }
 
         func updateMaxDepthLabel() {
@@ -502,7 +498,7 @@ struct VisualMapper: UIViewRepresentable {
             if label == nil {
                 label = UILabel()
                 label?.textColor = .white
-                label?.font = UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+                label?.font = UIFont.monospacedDigitSystemFont(ofSize: 24, weight: .medium)
                 label?.translatesAutoresizingMaskIntoConstraints = false
                 label?.tag = tag
                 arView.addSubview(label!)
@@ -542,24 +538,34 @@ struct VisualMapper: UIViewRepresentable {
         }
 
         @objc func exportTapped() {
-            guard let arView = arView else { return }
+            guard self.arView != nil else { return }
 
-            // snapshot your data
-            let pathSnapshot = self.pathPoints
+            let pathSnapshot    = self.pathPoints
             let featureSnapshot = Array(self.featurePointDict.values)
 
             DispatchQueue.global(qos: .userInitiated).async {
-                // 1) prepare file URL & stream
-                let url = FileManager.default.temporaryDirectory
-                                 .appendingPathComponent("cave_pointcloud_streamed.ply")
-                guard let stream = OutputStream(url: url, append: false) else {
-                    print("❌ Could not open OutputStream")
+                // timestamped filename
+                let fmt = DateFormatter()
+                fmt.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+                let ts = fmt.string(from: Date())
+                let fn = "pointcloud_\(ts).ply"
+
+                // target URL in Documents
+                let fm = FileManager.default
+                guard let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                    print("❌ Couldn't find Documents folder")
                     return
                 }
-                stream.open()
-                defer { stream.close() }
+                let url = docs.appendingPathComponent(fn)
 
-                // 2) write header
+                // open and write
+                guard let stream = OutputStream(url: url, append: false) else {
+                    print("❌ Could not open stream at \(url.path)")
+                    return
+                }
+                stream.open(); defer { stream.close() }
+
+                // 1) header
                 let header = """
                 ply
                 format ascii 1.0
@@ -575,76 +581,85 @@ struct VisualMapper: UIViewRepresentable {
                 end_header
 
                 """
-                if let hd = header.data(using: .utf8) {
-                    _ = hd.withUnsafeBytes { buf in
-                        stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
-                                     maxLength: buf.count)
+                if let data = header.data(using: .utf8) {
+                    _ = data.withUnsafeBytes { ptr in
+                        stream.write(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                     maxLength: ptr.count)
                     }
                 }
 
-                // 3) write each waypoint (yellow)
+                // 2) waypoints
                 for wp in pathSnapshot {
                     let line = String(
                       format: "%.4f %.4f %.4f 255 255 0 %.2f %.0f\n",
                       wp.position.x, wp.position.y, wp.position.z,
                       wp.depth, wp.heading
                     )
-                    if let d = line.data(using: .utf8) {
-                        _ = d.withUnsafeBytes { buf in
-                            stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
-                                         maxLength: buf.count)
+                    if let data = line.data(using: .utf8) {
+                        _ = data.withUnsafeBytes { ptr in
+                            stream.write(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                         maxLength: ptr.count)
                         }
                     }
                 }
 
-                // 4) write each feature point (cyan)
+                // 3) features
                 for fp in featureSnapshot {
                     let line = String(
                       format: "%.4f %.4f %.4f 0 255 255 -1.0 -1\n",
                       fp.x, fp.y, fp.z
                     )
-                    if let d = line.data(using: .utf8) {
-                        _ = d.withUnsafeBytes { buf in
-                            stream.write(buf.baseAddress!.assumingMemoryBound(to: UInt8.self),
-                                         maxLength: buf.count)
+                    if let data = line.data(using: .utf8) {
+                        _ = data.withUnsafeBytes { ptr in
+                            stream.write(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self),
+                                         maxLength: ptr.count)
                         }
                     }
                 }
 
-                // 5) back to main to present UIActivityViewController
                 DispatchQueue.main.async {
-                    let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-                    vc.modalPresentationStyle = .automatic
-                    var top = arView.window!.rootViewController!
-                    while let next = top.presentedViewController { top = next }
-                    top.present(vc, animated: true)
+                    print("✅ Saved PLY to \(url.path)")
                 }
             }
         }
+
+
 
 
         
         
 
         @objc func resetSession() {
-            guard let arView = arView else { return }
-            arView.scene.anchors.removeAll()
-            previousPosition = nil
-            previousAnchor = nil
-            totalDistance = 0.0
-            pathPoints.removeAll()
-            featurePointDict.removeAll()
-            isSessionActive = true
-            updateLabel()
-            updateMaxDepthLabel()
+                guard let arView = arView else { return }
+                arView.scene.anchors.removeAll()
+
+                // clear both your path + features
+                previousPosition = nil
+                previousAnchor   = nil
+                totalDistance    = 0.0
+                pathPoints.removeAll()
             
-        }
+                
+                featurePointEntities.values.forEach { $0.removeFromParent() }
+
+
+                featurePointEntities.removeAll()
+                featurePointAnchor = AnchorEntity()
+                arView.scene.addAnchor(featurePointAnchor)
+
+                isSessionActive = true
+                updateLabel()
+                updateMaxDepthLabel()
+            }
+
 
         @objc func stopSession() {
             if isSessionActive {
                 // First tap: Stop mapping, but keep session running
-                saveCSVToDisk()
+                exportTapped() // Dump data to disk
                 
+//                saveCSVToDisk()
+
                 isSessionActive = false
 
                 DispatchQueue.main.async { [weak self] in
@@ -663,35 +678,7 @@ struct VisualMapper: UIViewRepresentable {
 
 
         
-        @objc func exportCSVTapped() {
-            let filename = FileManager.default.temporaryDirectory.appendingPathComponent("path_data.csv")
-            var csv = "Index,X,Y,Z,Distance,Heading,Depth\n"
-
-            for (index, point) in pathPoints.enumerated() {
-                let line = "\(index),\(point.position.x),\(point.position.y),\(point.position.z),\(String(format: "%.2f", point.distance)),\(String(format: "%.0f", point.heading)),\(String(format: "%.2f", point.depth))\n"
-                csv += line
-            }
-
-            do {
-                try csv.write(to: filename, atomically: true, encoding: .utf8)
-                print("✅ CSV with XYZ exported to: \(filename)")
-
-                let vc = UIActivityViewController(activityItems: [filename], applicationActivities: nil)
-                vc.modalPresentationStyle = .automatic
-
-                DispatchQueue.main.async {
-                    if let topController = self.arView?.window?.rootViewController {
-                        var presented = topController
-                        while let next = presented.presentedViewController {
-                            presented = next
-                        }
-                        presented.safePresent(vc)
-                    }
-                }
-            } catch {
-                print("❌ Failed to export CSV: \(error)")
-            }
-        }
+        
 
         
        
@@ -722,6 +709,55 @@ struct VisualMapper: UIViewRepresentable {
                     print("❌ Failed to save CSV: \(error)")
                 }
             }
+
+        
+        ///  For every identifier in the ARPointCloud, if we haven't yet drawn it, make a little sphere
+        private func visualizeFeaturePoints(_ cloud: ARPointCloud) {
+            guard let arView = arView else { return }
+            
+            // Camera position in world-space
+            let camTransform = arView.cameraTransform
+            let camPosition  = camTransform.translation
+            
+            // —— PARAMETERS YOU CAN TUNE ——
+            let samplingRate     = 10      // 1 in 10 points
+            let maxPoints        = 2_000   // absolute cap
+            let keepRadius: Float = 10.0   // only show points within 10 m of the camera
+            
+            // Add new points (sparse sampling + never repeat an ID)
+            for (i, id) in cloud.identifiers.enumerated() {
+                guard i % samplingRate == 0,
+                      featurePointEntities[id] == nil
+                else { continue }
+
+                let pt = cloud.points[i]
+                let worldPt = simd_make_float3(pt)  // since your anchor is world-aligned
+
+                // Skip points that are really far from the user
+                if simd_distance(worldPt, camPosition) > keepRadius { continue }
+
+                // cheap box
+                let mesh = MeshResource.generateBox(size: 0.003)
+                let mat  = UnlitMaterial(color: .cyan)
+                let ent  = ModelEntity(mesh: mesh, materials: [mat])
+                ent.position = worldPt
+
+                featurePointAnchor.addChild(ent)
+                featurePointEntities[id] = ent
+            }
+
+            //  Cull old points when we exceed budget OR when they drift outside the keepRadius
+            for (id, ent) in featurePointEntities {
+                let pos = ent.position
+                if featurePointEntities.count > maxPoints
+                   || simd_distance(pos, camPosition) > keepRadius {
+                    ent.removeFromParent()
+                    featurePointEntities.removeValue(forKey: id)
+                }
+            }
+        }
+
+
 
         
         
