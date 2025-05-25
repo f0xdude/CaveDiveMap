@@ -26,11 +26,11 @@ struct ContentView: View {
                                 .monospacedDigit()
                             Divider()
                             HStack {
-                                Text("Heading error: \(heading.headingAccuracy, specifier: "%.2f")")
+                                Text("Heading error: \(heading.headingAccuracy - 10, specifier: "%.2f")")
                                     .font(.largeTitle)
                                 Circle()
                                     .fill(heading.headingAccuracy < 20 ? Color.green : Color.red)
-                                    .frame(width: 20, height: 20)
+                                    .frame(width: 25, height: 25)
                             }
                         }
                     } else {
@@ -56,7 +56,7 @@ struct ContentView: View {
 
                     ZStack {
                         Button(action: {
-                            if let heading = magnetometer.currentHeading, heading.headingAccuracy > 20 {
+                            if let heading = magnetometer.currentHeading, heading.headingAccuracy > 15 {
                                 showCalibrationToast = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                                     withAnimation {
@@ -70,7 +70,7 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.green)
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: 75, height: 75)
                                 Image(systemName: "square.and.arrow.down.fill")
                                     .foregroundColor(.white)
                                     .font(.title2)
@@ -84,7 +84,7 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.blue)
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: 75, height: 75)
                                 Image(systemName: "map.fill")
                                     .foregroundColor(.white)
                                     .font(.title2)
@@ -95,7 +95,7 @@ struct ContentView: View {
                         ZStack {
                             Circle()
                                 .fill(Color.red)
-                                .frame(width: 70, height: 70)
+                                .frame(width: 75, height: 75)
                             Text("Reset")
                                 .foregroundColor(.white)
                                 .bold()
@@ -112,7 +112,7 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.orange)
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: 75, height: 75)
                                 Image(systemName: "camera.fill")
                                     .foregroundColor(.white)
                                     .font(.title2)

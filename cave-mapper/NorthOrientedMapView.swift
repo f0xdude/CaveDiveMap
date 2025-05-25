@@ -71,16 +71,7 @@ struct NorthOrientedMapView: View {
                                 .font(.title2)
                         }
                     }
-                    
-                    NavigationLink(destination: ThreeDCaveMapView()) {
-                                ZStack {
-                                    Circle().fill(Color.purple).frame(width: 50, height: 50)
-                                    Image(systemName: "view.3d")
-                                        .foregroundColor(.white)
-                                        .font(.title2)
-                                }
-                            }
-                    
+              
                         
                     Button(action: { shareTherionData() }) {
                         ZStack {
@@ -145,117 +136,123 @@ struct NorthOrientedMapView: View {
     /// Draws the cave profile as a closed polygon (built from left/right offsets)
     /// and overlays the center guide line with markers and labels.
     private func drawCaveProfile(in size: CGSize) -> some View {
-        let manualData = mapData.filter { $0.rtype == "manual" }
+        // 1) pull out & sort your manual points
+        let manualData = mapData
+            .filter { $0.rtype == "manual" }
+            .sorted { $0.recordNumber < $1.recordNumber }
+
         guard !manualData.isEmpty else {
             return AnyView(Text("No manual data available").foregroundColor(.gray))
         }
-        
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let (guidePositions, guideAngles) = createGuideForManualPoints(center: center)
-        let count = min(guidePositions.count, manualData.count)
-        
+
+        let center = CGPoint(x: size.width/2, y: size.height/2)
+        // 2) now pass the sorted array in
+        let (guidePositions, guideAngles, segmentDistances) =
+            createGuideForManualPoints(center: center, manualData: manualData)
+
+        // build left/right walls exactly as before…
         var leftWallPoints: [CGPoint] = []
         var rightWallPoints: [CGPoint] = []
-        for i in 0..<count {
+        for i in 0..<guidePositions.count {
             let angle = guideAngles[i]
-            // Multiply distances by conversionFactor to increase the size.
-            let leftDistance = CGFloat(manualData[i].left) * conversionFactor
-            let rightDistance = CGFloat(manualData[i].right) * conversionFactor
-            let leftOffset = CGPoint(x: -leftDistance * CGFloat(sin(angle)),
-                                     y: -leftDistance * CGFloat(cos(angle)))
-            let rightOffset = CGPoint(x: rightDistance * CGFloat(sin(angle)),
-                                      y: rightDistance * CGFloat(cos(angle)))
-            let leftPoint = CGPoint(x: guidePositions[i].x + leftOffset.x,
-                                    y: guidePositions[i].y + leftOffset.y)
-            let rightPoint = CGPoint(x: guidePositions[i].x + rightOffset.x,
-                                     y: guidePositions[i].y + rightOffset.y)
+            let leftD  = CGFloat(manualData[i].left)  * conversionFactor
+            let rightD = CGFloat(manualData[i].right) * conversionFactor
+            let leftOffset  = CGPoint(x: -leftD * sin(angle), y: -leftD * cos(angle))
+            let rightOffset = CGPoint(x:  rightD * sin(angle), y:  rightD * cos(angle))
+            let gp = guidePositions[i]
+            let leftPoint = CGPoint(x: gp.x + leftOffset.x,
+                                    y: gp.y + leftOffset.y)
+            let rightPoint = CGPoint(x: gp.x + rightOffset.x,
+                                     y: gp.y + rightOffset.y)
+
             leftWallPoints.append(leftPoint)
             rightWallPoints.append(rightPoint)
+
         }
-        
+
+        // …and polygon/guide path the same
         var cavePolygon = Path()
         if let first = leftWallPoints.first {
             cavePolygon.move(to: first)
-            for pt in leftWallPoints.dropFirst() {
-                cavePolygon.addLine(to: pt)
-            }
-            for pt in rightWallPoints.reversed() {
-                cavePolygon.addLine(to: pt)
-            }
+            for pt in leftWallPoints.dropFirst() { cavePolygon.addLine(to: pt) }
+            for pt in rightWallPoints.reversed() { cavePolygon.addLine(to: pt) }
             cavePolygon.closeSubpath()
         }
-        
-        // Create guide (center) path.
         var guidePath = Path()
-        if let firstGuide = guidePositions.first {
-            guidePath.move(to: firstGuide)
-            for pt in guidePositions.dropFirst() {
-                guidePath.addLine(to: pt)
-            }
+        if let first = guidePositions.first {
+            guidePath.move(to: first)
+            for pt in guidePositions.dropFirst() { guidePath.addLine(to: pt) }
         }
-        
+
         return AnyView(
             ZStack {
                 cavePolygon.fill(Color.brown.opacity(0.5))
                 cavePolygon.stroke(Color.brown, lineWidth: 2)
-                
+
                 guidePath.stroke(Color.blue, style: StrokeStyle(lineWidth: 1, dash: [5]))
-                
-                if let firstGuide = guidePositions.first {
-                    Circle().fill(Color.green)
-                        .frame(width: markerSize, height: markerSize)
-                        .position(firstGuide)
-                    Text("Start")
+
+                // markers
+                Circle().fill(Color.green)
+                    .frame(width: markerSize, height: markerSize)
+                    .position(guidePositions.first!)
+                Circle().fill(Color.red)
+                    .frame(width: markerSize, height: markerSize)
+                    .position(guidePositions.last!)
+
+                // labels: use segmentDistances[i] instead of the raw cumulative
+                ForEach(0..<guidePositions.count, id: \.self) { i in
+                    let depth    = manualData[i].depth
+                    let segmentD = segmentDistances[i]
+                    Text(String(format: "Depth: %.1f m\nShot: %.1f m", depth, segmentD))
                         .font(.system(size: 12))
-                        .foregroundColor(.green)
-                        .position(x: firstGuide.x, y: firstGuide.y - 15)
-                }
-                if let lastGuide = guidePositions.last {
-                    Circle().fill(Color.red)
-                        .frame(width: markerSize, height: markerSize)
-                        .position(lastGuide)
-                    Text("End")
-                        .font(.system(size: 12))
-                        .foregroundColor(.red)
-                        .position(x: lastGuide.x, y: lastGuide.y - 15)
-                }
-                
-                ForEach(0..<count, id: \.self) { idx in
-                    let depth = manualData[idx].depth
-                    let distance = manualData[idx].distance
-                    let guidePoint = guidePositions[idx]
-                    Text(String(format: "Depth: %.1f m\nDist: %.1f m", depth, distance))
-                        .font(.system(size: 12))
-                        .foregroundColor(.black)
                         .padding(4)
                         .background(Color.white.opacity(0.7))
                         .cornerRadius(5)
                         .multilineTextAlignment(.center)
-                        .position(guidePoint)
+                        .position(guidePositions[i])
                 }
             }
         )
     }
+
+    
+    
     
     /// Computes guide (center) positions and heading angles for manual points only.
-    private func createGuideForManualPoints(center: CGPoint) -> (positions: [CGPoint], angles: [Double]) {
+    /// Iterates only your sorted manualData,
+    /// computing (1) the delta‐distance for each shot and
+    /// (2) the moving position + heading.
+    private func createGuideForManualPoints(
+        center: CGPoint,
+        manualData: [SavedData]
+    ) -> (positions: [CGPoint], angles: [Double], segmentDistances: [Double]) {
         var positions: [CGPoint] = []
-        var angles: [Double] = []
+        var angles:    [Double]  = []
+        var segmentDistances: [Double] = []
         var currentPosition = center
-        for data in mapData {
-            if data.rtype == "manual" {
-                let angle = data.heading.toMathRadiansFromHeading()
-                angles.append(angle)
-                // Multiply distance by conversionFactor.
-                let deltaX = conversionFactor * CGFloat(data.distance * cos(angle))
-                let deltaY = conversionFactor * CGFloat(data.distance * sin(angle))
-                currentPosition.x += deltaX
-                currentPosition.y -= deltaY
-                positions.append(currentPosition)
-            }
+        var previousDistance: Double = 0.0
+
+        for data in manualData {
+            let angle = data.heading.toMathRadiansFromHeading()
+            angles.append(angle)
+
+            // compute shot length between this station and the last
+            let segmentDist = data.distance - previousDistance
+            segmentDistances.append(segmentDist)
+            previousDistance = data.distance
+
+            // move out along this bearing by segmentDist
+            let dx = conversionFactor * CGFloat(segmentDist * cos(angle))
+            let dy = conversionFactor * CGFloat(segmentDist * sin(angle))
+            currentPosition.x += dx
+            currentPosition.y -= dy
+
+            positions.append(currentPosition)
         }
-        return (positions, angles)
+
+        return (positions, angles, segmentDistances)
     }
+
     
     private func loadMapData() {
         mapData = DataManager.loadSavedData()
@@ -279,24 +276,37 @@ struct NorthOrientedMapView: View {
     }
     
     /// Creates a full guide (center) path for all data (used for fitting the view).
-    private func createFullGuidePath(center: CGPoint) -> (path: Path, positions: [CGPoint], angles: [Double]) {
+    private func createFullGuidePath(center: CGPoint)
+        -> (path: Path, positions: [CGPoint], angles: [Double]) {
         var path = Path()
         var positions: [CGPoint] = []
         var angles: [Double] = []
         var currentPosition = center
+        var previousDistance: Double = 0.0
+
+        let manualData = mapData
+            .filter { $0.rtype == "manual" }
+            .sorted { $0.recordNumber < $1.recordNumber }
+
         path.move(to: currentPosition)
-        for data in mapData where data.rtype == "manual" {
+        for data in manualData {
             let angle = data.heading.toMathRadiansFromHeading()
             angles.append(angle)
-            let deltaX = conversionFactor * CGFloat(data.distance * cos(angle))
-            let deltaY = conversionFactor * CGFloat(data.distance * sin(angle))
-            currentPosition.x += deltaX
-            currentPosition.y -= deltaY
+
+            let segmentDist = data.distance - previousDistance
+            previousDistance = data.distance
+
+            let dx = conversionFactor * CGFloat(segmentDist * cos(angle))
+            let dy = conversionFactor * CGFloat(segmentDist * sin(angle))
+            currentPosition.x += dx
+            currentPosition.y -= dy
+
             positions.append(currentPosition)
             path.addLine(to: currentPosition)
         }
         return (path, positions, angles)
     }
+
     
     // MARK: - Export Data Functions
     

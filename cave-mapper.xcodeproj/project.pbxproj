@@ -24,7 +24,6 @@
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
 		98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */; };
 		98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E5E9012D9C8B8200B5607B /* VisualMapper.swift */; };
-		98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,7 +65,6 @@
 		989B57682CEE719100E46076 /* DataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataManager.swift; sourceTree = "<group>"; };
 		98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MagnetometerViewModel 2.swift"; sourceTree = "<group>"; };
 		98E5E9012D9C8B8200B5607B /* VisualMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualMapper.swift; sourceTree = "<group>"; };
-		98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ThreeDMapView 2.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,7 +125,6 @@
 			children = (
 				989B57652CED2B4B00E46076 /* Info.plist */,
 				989B57632CED22B700E46076 /* NorthOrientedMapView.swift */,
-				98F2224B2D96DAA7009FC92B /* ThreeDMapView 2.swift */,
 				98205A902D778D4900786E7C /* BLEViewController.swift */,
 				98205A922D77A8DC00786E7C /* BLESonarView.swift */,
 				9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */,
@@ -312,7 +309,6 @@
 				98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
-				98F2224C2D96DAA7009FC92B /* ThreeDMapView 2.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

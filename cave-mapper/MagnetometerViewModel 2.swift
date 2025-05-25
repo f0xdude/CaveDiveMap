@@ -92,7 +92,7 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             isRunning = true
         
         guard motionManager.isMagnetometerAvailable else { return }
-        motionManager.magnetometerUpdateInterval = 0.03
+        motionManager.magnetometerUpdateInterval = 0.02
         motionManager.startMagnetometerUpdates(to: .main) { [weak self] (data, error) in
             guard let self = self, let data = data, error == nil else { return }
             self.isRunning = true
@@ -144,7 +144,7 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     private func updateThresholds() {
-        guard !didCalibrate, magneticFieldHistory.count >= 20 else { return }
+        guard !didCalibrate, magneticFieldHistory.count >= 40 else { return }
         let mean = magneticFieldHistory.reduce(0, +) / Double(magneticFieldHistory.count)
         let sigma = sqrt(magneticFieldHistory.reduce(0) { $0 + pow($1 - mean, 2) } / Double(magneticFieldHistory.count))
         let offsetLow = max(30, sigma)
@@ -164,14 +164,22 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
 
     func runManualCalibration() {
         guard magneticFieldHistory.count >= 10 else { return }
-        let mean = magneticFieldHistory.reduce(0, +) / Double(magneticFieldHistory.count)
-        let sigma = sqrt(magneticFieldHistory.reduce(0) { $0 + pow($1 - mean, 2) } / Double(magneticFieldHistory.count))
-        lowThreshold = mean + max(30, sigma)
-        highThreshold = mean + max(60, sigma * 2)
+
+        // Direct min/max rather than σ
+        let minVal = magneticFieldHistory.min()!
+        let maxVal = magneticFieldHistory.max()!
+
+        // e.g. threshold crossings at 20%/80% of the peak‐to‐peak range:
+        let range = maxVal - minVal
+        lowThreshold  = minVal + 0.2 * range
+        highThreshold = minVal + 0.8 * range
+
         didCalibrate = true
-        UserDefaults.standard.set(lowThreshold, forKey: "lowThreshold")
-        UserDefaults.standard.set(highThreshold, forKey: "highThreshold")
+        let defaults = UserDefaults.standard
+        defaults.set(lowThreshold,  forKey: "lowThreshold")
+        defaults.set(highThreshold, forKey: "highThreshold")
     }
+
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
         DispatchQueue.main.async {
