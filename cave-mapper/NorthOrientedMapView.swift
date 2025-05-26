@@ -133,65 +133,101 @@ struct NorthOrientedMapView: View {
     
     // MARK: - Cave Drawing
     
+    
     /// Draws the cave profile as a closed polygon (built from left/right offsets)
-    /// and overlays the center guide line with markers and labels.
+    /// and overlays the center guide line with markers, labels, and correctly-joined walls.
     private func drawCaveProfile(in size: CGSize) -> some View {
         // 1) pull out & sort your manual points
         let manualData = mapData
             .filter { $0.rtype == "manual" }
             .sorted { $0.recordNumber < $1.recordNumber }
 
-        guard !manualData.isEmpty else {
-            return AnyView(Text("No manual data available").foregroundColor(.gray))
+        // Need at least two points for a polygon
+        guard manualData.count >= 2 else {
+            return AnyView(Text("Need at least two manual points to draw profile")
+                .foregroundColor(.gray))
         }
 
+        // 2) compute centre-line positions & angles
         let center = CGPoint(x: size.width/2, y: size.height/2)
-        // 2) now pass the sorted array in
         let (guidePositions, guideAngles, segmentDistances) =
             createGuideForManualPoints(center: center, manualData: manualData)
 
-        // build left/right walls exactly as before…
+        let count = guidePositions.count
         var leftWallPoints: [CGPoint] = []
         var rightWallPoints: [CGPoint] = []
-        for i in 0..<guidePositions.count {
-            let angle = guideAngles[i]
+
+        // 3) build left/right wall points with miter joins
+        for i in 0..<count {
+            let gp = guidePositions[i]
             let leftD  = CGFloat(manualData[i].left)  * conversionFactor
             let rightD = CGFloat(manualData[i].right) * conversionFactor
-            let leftOffset  = CGPoint(x: -leftD * sin(angle), y: -leftD * cos(angle))
-            let rightOffset = CGPoint(x:  rightD * sin(angle), y:  rightD * cos(angle))
-            let gp = guidePositions[i]
-            let leftPoint = CGPoint(x: gp.x + leftOffset.x,
-                                    y: gp.y + leftOffset.y)
-            let rightPoint = CGPoint(x: gp.x + rightOffset.x,
-                                     y: gp.y + rightOffset.y)
 
-            leftWallPoints.append(leftPoint)
-            rightWallPoints.append(rightPoint)
+            if i == 0 || i == count - 1 {
+                // endpoints: simple perpendicular offset
+                let angle = guideAngles[i]
+                let leftOffset  = CGPoint(x: -leftD * sin(angle), y: -leftD * cos(angle))
+                let rightOffset = CGPoint(x:  rightD * sin(angle), y:  rightD * cos(angle))
+                leftWallPoints.append(CGPoint(x: gp.x + leftOffset.x,
+                                             y: gp.y + leftOffset.y))
+                rightWallPoints.append(CGPoint(x: gp.x + rightOffset.x,
+                                              y: gp.y + rightOffset.y))
+            } else {
+                // interior: miter-join along bisector of angle change
 
+                // incoming/outgoing bearings
+                let angleIn  = guideAngles[i]
+                let angleOut = guideAngles[i+1]
+
+                // LEFT‐side normals (unit vectors)
+                let nInL  = CGPoint(x: -sin(angleIn),  y: -cos(angleIn))
+                let nOutL = CGPoint(x: -sin(angleOut), y: -cos(angleOut))
+                let sumL  = CGPoint(x: nInL.x + nOutL.x, y: nInL.y + nOutL.y)
+                let dotL  = sumL.x * nInL.x + sumL.y * nInL.y
+                let miterL = CGPoint(x: sumL.x * (leftD  / dotL),
+                                     y: sumL.y * (leftD  / dotL))
+                leftWallPoints.append(CGPoint(x: gp.x + miterL.x,
+                                             y: gp.y + miterL.y))
+
+                // RIGHT‐side normals
+                let nInR  = CGPoint(x:  sin(angleIn), y:  cos(angleIn))
+                let nOutR = CGPoint(x:  sin(angleOut), y:  cos(angleOut))
+                let sumR  = CGPoint(x: nInR.x + nOutR.x, y: nInR.y + nOutR.y)
+                let dotR  = sumR.x * nInR.x + sumR.y * nInR.y
+                let miterR = CGPoint(x: sumR.x * (rightD / dotR),
+                                     y: sumR.y * (rightD / dotR))
+                rightWallPoints.append(CGPoint(x: gp.x + miterR.x,
+                                              y: gp.y + miterR.y))
+            }
         }
 
-        // …and polygon/guide path the same
+        // 4) build the cave polygon path
         var cavePolygon = Path()
-        if let first = leftWallPoints.first {
-            cavePolygon.move(to: first)
+        if let start = leftWallPoints.first {
+            cavePolygon.move(to: start)
             for pt in leftWallPoints.dropFirst() { cavePolygon.addLine(to: pt) }
             for pt in rightWallPoints.reversed() { cavePolygon.addLine(to: pt) }
             cavePolygon.closeSubpath()
         }
+
+        // 5) build the centre-line path
         var guidePath = Path()
-        if let first = guidePositions.first {
-            guidePath.move(to: first)
+        if let start = guidePositions.first {
+            guidePath.move(to: start)
             for pt in guidePositions.dropFirst() { guidePath.addLine(to: pt) }
         }
 
+        // 6) render everything
         return AnyView(
             ZStack {
+                // cave walls
                 cavePolygon.fill(Color.brown.opacity(0.5))
                 cavePolygon.stroke(Color.brown, lineWidth: 2)
 
+                // centre line
                 guidePath.stroke(Color.blue, style: StrokeStyle(lineWidth: 1, dash: [5]))
 
-                // markers
+                // start/end markers
                 Circle().fill(Color.green)
                     .frame(width: markerSize, height: markerSize)
                     .position(guidePositions.first!)
@@ -199,7 +235,7 @@ struct NorthOrientedMapView: View {
                     .frame(width: markerSize, height: markerSize)
                     .position(guidePositions.last!)
 
-                // labels: use segmentDistances[i] instead of the raw cumulative
+                // depth & shot labels at each station
                 ForEach(0..<guidePositions.count, id: \.self) { i in
                     let depth    = manualData[i].depth
                     let segmentD = segmentDistances[i]
@@ -214,6 +250,7 @@ struct NorthOrientedMapView: View {
             }
         )
     }
+
 
     
     
