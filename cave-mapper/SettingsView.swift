@@ -169,8 +169,8 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                     }
                     
-                    NavigationLink(destination: VisualMapper()) {
-                        Text("(Experimental) Visual Mapper")
+                    NavigationLink(destination: PlyVisualizerView()) {
+                        Text("PointCloud to Map")
                             .font(.headline)
                             .foregroundColor(.blue)
                     }

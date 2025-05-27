@@ -13,24 +13,37 @@ struct BLESonarView: View {
                 .padding()
             
             if bleManager.isConnected {
-                Text("Connected to: \(bleManager.connectedPeripheral?.name ?? "Unknown")")
-                    .font(.headline)
-                
-                Text("Raw Data: \(bleManager.receivedHex)")
-                    .font(.system(.body, design: .monospaced))
+                VStack(spacing: 12) {
+                    Text("Connected to: \(bleManager.connectedPeripheral?.name ?? "Unknown")")
+                        .font(.headline)
+                    
+                    Group {
+                        Text("Raw Data: \(bleManager.receivedHex)")
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(1)
+                        
+                        Text("Depth: \(bleManager.decodedDepth, specifier: "%.2f") m")
+                        Text("Strength: \(bleManager.decodedStrength, specifier: "%.0f")%")
+                        
+                        Text("Fish Depth: \(bleManager.decodedFishDepth, specifier: "%.2f") m")
+                        Text("Fish Strength: \(bleManager.decodedFishStrength, specifier: "%.0f")%")
+                        
+                        Text("Battery: \(bleManager.decodedBattery, specifier: "%.0f")%")
+                        Text("Temp: \(bleManager.decodedTemperature, specifier: "%.1f")℃")
+                    }
+                    .font(.subheadline)
+                    
+                    Button("Disconnect") {
+                        bleManager.disconnect()
+                    }
                     .padding()
-                
-                Text("Depth: \(bleManager.decodedDepth, specifier: "%.2f") m")
-                    .font(.headline)
-                
-                Button("Disconnect") {
-                    bleManager.disconnect()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
                 }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.red)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+                .padding(.horizontal)
+                
             } else {
                 Button("Start Scan") {
                     bleManager.startScan()
@@ -50,15 +63,15 @@ struct BLESonarView: View {
                             Spacer()
                             Text(peripheral.identifier.uuidString)
                                 .font(.caption)
+                                .foregroundColor(.gray)
                         }
                     }
                 }
             }
+            
             Spacer()
         }
         .padding()
         .navigationTitle("BLE Sonar")
     }
 }
-
-

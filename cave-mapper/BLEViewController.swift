@@ -16,6 +16,19 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     // Reference to the connected peripheral.
     @Published var connectedPeripheral: CBPeripheral?
     
+    @Published var decodedStrength: Double = 0.0
+    @Published var decodedFishDepth: Double = 0.0
+    @Published var decodedFishStrength: Double = 0.0
+    @Published var decodedBattery: Double = 0.0
+    
+
+    
+    struct SonarBluetooth {
+        static let ID0: UInt8 = 0x53    // 'S'
+        static let ID1: UInt8 = 0x46    // 'F'
+    }
+
+    
     var centralManager: CBCentralManager!
     
     // Depth scaling factor (adjust as needed)
@@ -127,31 +140,86 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             statusMessage = "Error updating value: \(error.localizedDescription)"
             return
         }
+        guard let data = characteristic.value, data.count >= 20 else { return }
         
-        // Ensure we have at least 8 bytes.
-        guard let data = characteristic.value, data.count >= 8 else { return }
+        // Header + trailer check (SF … 0x55AA)
+        guard data[0] == SonarBluetooth.ID0,
+              data[1] == SonarBluetooth.ID1,
+              data[data.count-2] == 0x55,
+              data[data.count-1] == 0xAA
+        else {
+          print("Bad frame:", data.map { String(format: "%02X", $0) })
+          return
+        }
         
-        // Convert data to a hex string for debugging.
-        let hexString = data.map { String(format: "%02X", $0) }.joined()
-        print("BLEManager receivedHex:", hexString)
+        // Strip out the 18-byte core packet
+        let packet = Array(data[0..<18])
+        // Checksum over bytes 0…16 matches byte 17
+        var sum = 0
+        for i in 0..<17 { sum = (sum + Int(packet[i])) & 0xFF }
+        guard sum == Int(packet[17]) else {
+          print("Bad checksum \(sum) != \(packet[17])")
+          return
+        }
         
+        // MARK: – Decoding helpers
+        func be(_ hi: UInt8, _ lo: UInt8) -> UInt16 {
+            return (UInt16(hi) << 8) | UInt16(lo)
+        }
+        /// matches Java’s b2f: raw 16-bit ÷ 100.0
+        func b2f(_ hi: UInt8, _ lo: UInt8) -> Double {
+            return Double(be(hi, lo)) / 100.0
+        }
+        
+        let flags = packet[4]
+        let isDry = (flags & 0x08) != 0
+        let ft2m: Double = 0.3048
+        
+        // 1) Depth: b2f → feet → meters
+        let depthFeet = b2f(packet[6], packet[7])
+        let depthMeters = isDry ? -0.01 : depthFeet * ft2m
+        
+        // 2) Bottom strength
+        let strengthPct = Double(packet[8]) / 256.0 * 100.0
+        
+        // 3) Fish depth
+        let fishFeet = b2f(packet[9], packet[10])
+        let fishMeters = fishFeet * ft2m
+        
+        // 4) Fish strength nibble
+        let fishN = Int(packet[11]) & 0x0F
+        let fishStrengthPct = Double(fishN) / 16.0 * 100.0
+        
+        // 5) Battery nibble
+        let batN = (Int(packet[11]) >> 4) & 0x0F
+        let batteryPct = Double(batN) / 6.0 * 100.0
+        
+        // 6) Temperature: b2f → °F → °C
+        let tempF = b2f(packet[12], packet[13])
+        let tempC = (tempF - 32.0) * 5.0 / 9.0
+        
+        // Publish back on main
         DispatchQueue.main.async {
-            self.receivedHex = hexString
-            self.statusMessage = "Data received"
-            
-            // Check that the depth measurement field starts with the expected identifier 0x04.
-            // Expected depth bytes: [0x04, highByte, lowByte] at indices 5, 6, and 7.
-            if data[5] == 0x04 {
-                // Combine bytes 6 and 7 to form a 16-bit integer (big-endian).
-                let rawDepth = (UInt16(data[6]) << 8) | UInt16(data[7])
-                // Convert raw depth to meters using a scaling factor of 0.01.
-                self.decodedDepth = Double(rawDepth) / 100.0
-                print("Decoded depth: \(self.decodedDepth) meters")
-            } else {
-                print("Unexpected identifier at byte 5: \(data[5]).")
-            }
+            self.receivedHex         = data.map { String(format: "%02X", $0) }.joined()
+            self.statusMessage       = "Data received"
+            self.decodedDepth        = depthMeters
+            self.decodedStrength     = strengthPct
+            self.decodedFishDepth    = fishMeters
+            self.decodedFishStrength = fishStrengthPct
+            self.decodedBattery      = batteryPct
+            self.decodedTemperature  = tempC
+            print(String(format:
+                "D: %.2fm  S: %.0f%%  Fd: %.2fm  Fs: %.0f%%  Bat: %.0f%%  T: %.1f℃",
+                depthMeters, strengthPct,
+                fishMeters, fishStrengthPct,
+                batteryPct, tempC))
         }
     }
+
+    
+    
+    
+
 
     
     // Disconnect manually.
