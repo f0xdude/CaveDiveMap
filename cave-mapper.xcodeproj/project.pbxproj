@@ -19,7 +19,6 @@
 		9852A6272CEBBBE0000C2A15 /* cave_mapperUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */; };
 		9852A6292CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */; };
 		9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9886EDD02D63E61A00EF570D /* CameraView.swift */; };
-		988743102DE7671100C54C44 /* Point3D.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9887430F2DE7671100C54C44 /* Point3D.swift */; };
 		989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57632CED22B700E46076 /* NorthOrientedMapView.swift */; };
 		989B57672CEE504500E46076 /* SaveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57662CEE504500E46076 /* SaveDataView.swift */; };
 		989B57692CEE719100E46076 /* DataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 989B57682CEE719100E46076 /* DataManager.swift */; };
@@ -60,7 +59,6 @@
 		9852A6262CEBBBE0000C2A15 /* cave_mapperUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITests.swift; sourceTree = "<group>"; };
 		9852A6282CEBBBE0000C2A15 /* cave_mapperUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = cave_mapperUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		9886EDD02D63E61A00EF570D /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
-		9887430F2DE7671100C54C44 /* Point3D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Point3D.swift; sourceTree = "<group>"; };
 		989B57632CED22B700E46076 /* NorthOrientedMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NorthOrientedMapView.swift; sourceTree = "<group>"; };
 		989B57652CED2B4B00E46076 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		989B57662CEE504500E46076 /* SaveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveDataView.swift; sourceTree = "<group>"; };
@@ -132,7 +130,6 @@
 				9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */,
 				98E5E9012D9C8B8200B5607B /* VisualMapper.swift */,
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
-				9887430F2DE7671100C54C44 /* Point3D.swift */,
 				98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
@@ -310,7 +307,6 @@
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
 				98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */,
-				988743102DE7671100C54C44 /* Point3D.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
 			);
