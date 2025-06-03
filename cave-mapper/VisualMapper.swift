@@ -297,37 +297,67 @@ struct VisualMapper: UIViewRepresentable {
         func checkForLoopClosure(at currentPosition: SIMD3<Float>, heading: Double) -> Bool {
             guard loopClosureEnabled, pathPoints.count > 20 else { return false }
 
+            var bestMatchIndex: Int? = nil
+            var lowestDrift: Float = .greatestFiniteMagnitude
+
             for i in 0..<(pathPoints.count - 20) {
                 let prev = pathPoints[i]
-                let distance = simd_distance(prev.position, currentPosition)
+                let spatialDistance = simd_distance(prev.position, currentPosition)
                 let headingDiff = abs(prev.heading - heading)
 
-                if distance < 0.2 && headingDiff < 10 {
+                // ✅ Looser match thresholds
+                if spatialDistance < 0.5 && headingDiff < 25 {
                     let drift = simd_length(prev.position - currentPosition)
-                    if drift < 0.3 {
-                        // Too small to correct—likely noise
-                        return false
-                    }
 
-                    print("\u{1F501} Loop closure detected at index \(i)")
-                    showLoopClosureIndicator(at: currentPosition)
-                    correctDriftSmoothly(from: i, to: pathPoints.count - 1, currentPos: currentPosition, matchedPos: prev.position)
-                    return true
+                    if drift < lowestDrift && drift > 0.1 {
+                        bestMatchIndex = i
+                        lowestDrift = drift
+                    }
                 }
             }
-            return false
+
+            guard let matchIndex = bestMatchIndex else {
+                return false
+            }
+
+            print("🔁 Loop closure confirmed at index \(matchIndex) with drift \(lowestDrift)")
+            showLoopClosureIndicator(at: currentPosition)
+
+            // 🔀 Correct from both sides
+            let midIndex = (matchIndex + pathPoints.count - 1) / 2
+
+            let matchedPos = pathPoints[matchIndex].position
+            correctDriftSmoothly(from: matchIndex, to: midIndex, currentPos: currentPosition, matchedPos: matchedPos)
+            correctDriftSmoothly(from: midIndex, to: pathPoints.count - 1, currentPos: currentPosition, matchedPos: matchedPos)
+
+            return true
         }
 
+        
+
         func correctDriftSmoothly(from startIndex: Int, to endIndex: Int, currentPos: SIMD3<Float>, matchedPos: SIMD3<Float>) {
-            let correction = matchedPos - currentPos
+            let rawCorrection = matchedPos - currentPos
+            let maxCorrectionLength: Float = 2.0
+
+            // Clamp to max correction length to prevent extreme jumps
+            let correction: SIMD3<Float> = {
+                let len = simd_length(rawCorrection)
+                if len > maxCorrectionLength {
+                    return simd_normalize(rawCorrection) * maxCorrectionLength
+                } else {
+                    return rawCorrection
+                }
+            }()
+
             let rangeLength = Float(endIndex - startIndex + 1)
-            print("Applying smooth correction over range \(startIndex)-\(endIndex): \(correction)")
+            print("🔧 Applying smooth correction over range \(startIndex)-\(endIndex): \(correction)")
 
             for (offset, i) in (startIndex...endIndex).enumerated() {
-                let factor = Float(offset) / rangeLength
-                let blendedCorrection = correction * factor
-                pathPoints[i].position += blendedCorrection
-                pathPoints[i].drift = simd_length(blendedCorrection)
+                let t = Float(offset) / rangeLength
+                let smoothedCorrection = correction * t
+
+                pathPoints[i].position += smoothedCorrection
+                pathPoints[i].drift = simd_length(smoothedCorrection)
             }
 
             updateDriftLabel()
