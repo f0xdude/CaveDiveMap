@@ -3,26 +3,48 @@ import simd
 import UniformTypeIdentifiers
 import CoreGraphics
 
+// MARK: - Data Models
+
 struct Point3D {
     var x: Float
     var y: Float
     var z: Float
     var color: SIMD3<Float>
+    // Optional extras from our PLY:
+    var depth: Float? = nil
+    var heading: Float? = nil
+    var commentID: Int? = nil
+    var vertexIndex: Int = 0
 }
+
+struct LoadedPLY {
+    var points: [Point3D]
+    /// comment text keyed by vertex_index (as written in the PLY header)
+    var commentsByVertexIndex: [Int: String]
+}
+
+struct LabelPoint {
+    var point: CGPoint
+    var text: String
+}
+
+// MARK: - Main View
 
 struct PlyVisualizerView: View {
     @State private var centerlinePoints: [CGPoint] = []
     @State private var wallTopPoints: [CGPoint] = []
     @State private var wallSidePoints: [CGPoint] = []
+
+    @State private var labelsTop: [LabelPoint] = []
+    @State private var labelsSide: [LabelPoint] = []
+
     @State private var angleDegrees: Double = 0
     @State private var isImporterPresented = false
     
     var totalDistance: Double {
         guard centerlinePoints.count > 1 else { return 0 }
         return zip(centerlinePoints, centerlinePoints.dropFirst())
-            .map { a, b in
-                hypot(a.x - b.x, a.y - b.y)
-            }
+            .map { a, b in hypot(a.x - b.x, a.y - b.y) }
             .reduce(0, +)
     }
 
@@ -31,13 +53,13 @@ struct PlyVisualizerView: View {
         return Double(wallSidePoints.map { $0.y }.min() ?? 0)
     }
 
-
     var body: some View {
         VStack {
             ZoomableView {
                 ProjectionView(
                     points: wallTopPoints,
-                    centerlinePoints: centerlinePoints
+                    centerlinePoints: centerlinePoints,
+                    labels: labelsTop
                 )
             }
             .frame(height: 200)
@@ -47,7 +69,8 @@ struct PlyVisualizerView: View {
             ZoomableView {
                 ProjectionView(
                     points: wallSidePoints,
-                    centerlinePoints: [] // optional side centerline
+                    centerlinePoints: [], // optional in side view
+                    labels: labelsSide
                 )
             }
             .frame(height: 200)
@@ -88,17 +111,37 @@ struct PlyVisualizerView: View {
         }
     }
 
+    // MARK: - Load & Parse
+
     func loadPLY(from url: URL) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let points = loadPLYPoints(from: url)
+            let loaded = loadPLYPointsAndComments(from: url)
+            let points = loaded.points
+            let commentsByVertex = loaded.commentsByVertexIndex
 
-            let yellowMask = points.filter { $0.color.x > 0.8 && $0.color.y > 0.8 && $0.color.z < 0.3 }
-            let wall = points.filter { !($0.color.x > 0.8 && $0.color.y > 0.8 && $0.color.z < 0.3) }
+            // Identify path (yellow) vs wall/feature
+            let isYellow: (Point3D) -> Bool = { p in
+                p.color.x > 0.8 && p.color.y > 0.8 && p.color.z < 0.3
+            }
+            let centerline = points.filter(isYellow)
+            let wall = points.filter { !isYellow($0) }
 
-            let centerlineProj = yellowMask.map { CGPoint(x: Double($0.x), y: Double($0.z)) }
+            // Projections
+            let centerlineProj = centerline.map { CGPoint(x: Double($0.x), y: Double($0.z)) }
             let wallTopProj = wall.map { CGPoint(x: Double($0.x), y: Double($0.z)) }
             let wallSideProj = wall.map { CGPoint(x: Double($0.x), y: Double($0.y)) }
 
+            // Labels next to corresponding path vertices
+            var topLabels: [LabelPoint] = []
+            var sideLabels: [LabelPoint] = []
+            for p in centerline {
+                if let text = commentsByVertex[p.vertexIndex] {
+                    topLabels.append(LabelPoint(point: CGPoint(x: Double(p.x), y: Double(p.z)), text: text))
+                    sideLabels.append(LabelPoint(point: CGPoint(x: Double(p.x), y: Double(p.y)), text: text))
+                }
+            }
+
+            // Map orientation angle
             let angle: Double = {
                 guard let s = centerlineProj.first, let e = centerlineProj.last else { return 0 }
                 let dx = e.x - s.x
@@ -112,51 +155,117 @@ struct PlyVisualizerView: View {
                 centerlinePoints = centerlineProj
                 wallTopPoints = wallTopProj
                 wallSidePoints = wallSideProj
+                labelsTop = topLabels
+                labelsSide = sideLabels
                 angleDegrees = angle
             }
         }
     }
 
-    func loadPLYPoints(from fileURL: URL) -> [Point3D] {
+    /// Parse PLY with our custom header comments and comment_id property.
+    func loadPLYPointsAndComments(from fileURL: URL) -> LoadedPLY {
+        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            return LoadedPLY(points: [], commentsByVertexIndex: [:])
+        }
         var points: [Point3D] = []
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return [] }
-        let lines = content.split(separator: "\n")
+        var commentsByVertexIndex: [Int: String] = [:]
+
+        let lines = content.split(whereSeparator: \.isNewline).map { String($0) }
         var headerEnded = false
         var vertexCount = 0
+        var readVertices = 0
 
-        for line in lines {
-            if !headerEnded {
-                if line.starts(with: "element vertex") {
-                    let parts = line.split(separator: " ")
-                    vertexCount = Int(parts.last ?? "0") ?? 0
-                }
-                if line == "end_header" {
-                    headerEnded = true
-                }
-                continue
+        // Parse header + collect comment annotations
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            if line == "end_header" {
+                headerEnded = true
+                i += 1
+                break
             }
-            if vertexCount > 0 && points.count < vertexCount {
-                let parts = line.split(separator: " ").map { Float($0) ?? 0 }
-                if parts.count >= 6 {
-                    let point = Point3D(
-                        x: parts[0], y: parts[1], z: parts[2],
-                        color: SIMD3<Float>(parts[3] / 255, parts[4] / 255, parts[5] / 255)
-                    )
-                    points.append(point)
+            if line.hasPrefix("element vertex") {
+                let parts = line.split(separator: " ")
+                if let last = parts.last, let n = Int(last) {
+                    vertexCount = n
                 }
             }
+            if line.hasPrefix("comment annotation") {
+                // Expected: comment annotation id=XX vertex_index=YY text=...
+                // Extract vertex_index and text
+                let comps = line.split(separator: " ")
+                var vIndex: Int? = nil
+                var textStart: String = ""
+                for (idx, token) in comps.enumerated() {
+                    if token.hasPrefix("vertex_index=") {
+                        let val = token.replacingOccurrences(of: "vertex_index=", with: "")
+                        vIndex = Int(val)
+                    }
+                    if token.hasPrefix("text=") {
+                        // The rest of the line (including spaces) after "text="
+                        let joined = comps[idx...].joined(separator: " ")
+                        textStart = joined.replacingOccurrences(of: "text=", with: "")
+                        break
+                    }
+                }
+                if let vi = vIndex, !textStart.isEmpty {
+                    commentsByVertexIndex[vi] = textStart
+                }
+            }
+            i += 1
         }
-        return points
+
+        // Parse vertices
+        while headerEnded && readVertices < vertexCount && i < lines.count {
+            let line = lines[i]
+            let parts = line.split(whereSeparator: { $0 == " " || $0 == "\t" }).map { String($0) }
+
+            // We expect at least x y z r g b; may also have depth heading comment_id
+            guard parts.count >= 6 else { i += 1; continue }
+            let x = Float(parts[0]) ?? 0
+            let y = Float(parts[1]) ?? 0
+            let z = Float(parts[2]) ?? 0
+            let r = Float(parts[3]) ?? 0
+            let g = Float(parts[4]) ?? 0
+            let b = Float(parts[5]) ?? 0
+
+            var depth: Float? = nil
+            var heading: Float? = nil
+            var commentID: Int? = nil
+            if parts.count >= 8 {
+                depth = Float(parts[6])
+                heading = Float(parts[7])
+            }
+            if parts.count >= 9 {
+                commentID = Int(parts[8])
+            }
+
+            let p = Point3D(
+                x: x, y: y, z: z,
+                color: SIMD3<Float>(r/255.0, g/255.0, b/255.0),
+                depth: depth, heading: heading, commentID: commentID,
+                vertexIndex: readVertices
+            )
+            points.append(p)
+
+            readVertices += 1
+            i += 1
+        }
+
+        return LoadedPLY(points: points, commentsByVertexIndex: commentsByVertexIndex)
     }
 }
+
+// MARK: - Drawing
 
 struct ProjectionView: View {
     var points: [CGPoint]
     var centerlinePoints: [CGPoint]
+    var labels: [LabelPoint] = []
 
     var body: some View {
         Canvas { context, size in
-            let allPoints = points + centerlinePoints
+            let allPoints = points + centerlinePoints + labels.map { $0.point }
             guard !allPoints.isEmpty else { return }
 
             let minX = allPoints.map { $0.x }.min() ?? 0
@@ -164,8 +273,8 @@ struct ProjectionView: View {
             let minY = allPoints.map { $0.y }.min() ?? 0
             let maxY = allPoints.map { $0.y }.max() ?? 1
 
-            let scaleX = size.width / (maxX - minX)
-            let scaleY = size.height / (maxY - minY)
+            let scaleX = size.width / max(0.0001, (maxX - minX))
+            let scaleY = size.height / max(0.0001, (maxY - minY))
             let scale = min(scaleX, scaleY)
 
             let offset = CGPoint(x: -minX * scale, y: -minY * scale)
@@ -175,12 +284,14 @@ struct ProjectionView: View {
                         y: size.height - (point.y * scale + offset.y))
             }
 
+            // Walls
             for point in points {
                 let p = transform(point)
                 let rect = CGRect(x: p.x, y: p.y, width: 1, height: 1)
                 context.fill(Path(ellipseIn: rect), with: .color(.gray))
             }
 
+            // Centerline
             if !centerlinePoints.isEmpty {
                 var path = Path()
                 path.move(to: transform(centerlinePoints[0]))
@@ -189,9 +300,24 @@ struct ProjectionView: View {
                 }
                 context.stroke(path, with: .color(.yellow), lineWidth: 1)
             }
+
+            // Labels next to path points
+            for label in labels {
+                let p = transform(label.point)
+
+                // small dot at the labeled vertex
+                let dotRect = CGRect(x: p.x-1.5, y: p.y-1.5, width: 3, height: 3)
+                context.fill(Path(ellipseIn: dotRect), with: .color(.white))
+
+                // text a bit to the right/up
+                let text = Text(label.text).font(.system(size: 10, weight: .regular, design: .default))
+                context.draw(text, at: CGPoint(x: p.x + 6, y: p.y - 6), anchor: .topLeading)
+            }
         }
     }
 }
+
+// MARK: - Zooming & Compass (unchanged)
 
 struct ZoomableView<Content: View>: View {
     @State private var currentScale: CGFloat = 1.0
@@ -209,16 +335,10 @@ struct ZoomableView<Content: View>: View {
             .gesture(
                 SimultaneousGesture(
                     MagnificationGesture()
-                        .updating($gestureScale) { value, state, _ in
-                            state = value
-                        }
-                        .onEnded { value in
-                            currentScale *= value
-                        },
+                        .updating($gestureScale) { value, state, _ in state = value }
+                        .onEnded { value in currentScale *= value },
                     DragGesture()
-                        .updating($dragOffset) { value, state, _ in
-                            state = value.translation
-                        }
+                        .updating($dragOffset) { value, state, _ in state = value.translation }
                         .onEnded { value in
                             offset.width += value.translation.width
                             offset.height += value.translation.height
@@ -263,4 +383,3 @@ struct Arrow: Shape {
         return path
     }
 }
-

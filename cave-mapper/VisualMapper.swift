@@ -88,16 +88,6 @@ struct VisualMapper: UIViewRepresentable {
         
 
 
-//        let resetButton = UIButton(type: .system)
-//        resetButton.setTitle("RESET", for: .normal)
-//        resetButton.setTitleColor(.white, for: .normal)
-//        resetButton.titleLabel?.font = UIFont.systemFont(ofSize: 20)
-//        resetButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
-//        resetButton.layer.cornerRadius = 35
-//        resetButton.translatesAutoresizingMaskIntoConstraints = false
-//        resetButton.addTarget(context.coordinator, action: #selector(Coordinator.resetSession), for: .touchUpInside)
-//        arView.addSubview(resetButton)
-
         let stopButton = UIButton(type: .system)
         context.coordinator.stopButton = stopButton
 
@@ -110,6 +100,26 @@ struct VisualMapper: UIViewRepresentable {
         stopButton.addTarget(context.coordinator, action: #selector(Coordinator.stopSession), for: .touchUpInside)
         arView.addSubview(stopButton)
 
+        
+        let commentButton = UIButton(type: .system)
+        commentButton.setTitle("ADD COMMENT", for: .normal)
+        commentButton.setTitleColor(.white, for: .normal)
+        commentButton.titleLabel?.font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        commentButton.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.9)
+        commentButton.layer.cornerRadius = 35
+        commentButton.translatesAutoresizingMaskIntoConstraints = false
+        commentButton.addTarget(context.coordinator, action: #selector(Coordinator.promptForComment), for: .touchUpInside)
+        arView.addSubview(commentButton)
+
+        NSLayoutConstraint.activate([
+            // позиция спрямо STOP
+            commentButton.leadingAnchor.constraint(equalTo: stopButton.trailingAnchor, constant: 20),
+            commentButton.centerYAnchor.constraint(equalTo: stopButton.centerYAnchor),
+            commentButton.widthAnchor.constraint(equalToConstant: 140),
+            commentButton.heightAnchor.constraint(equalToConstant: 70)
+        ])
+        
+        
         
         let trackingLabel = UILabel()
         trackingLabel.textColor = .white
@@ -173,6 +183,8 @@ struct VisualMapper: UIViewRepresentable {
         private var loopClosureEnabled: Bool = true
         var stopButton: UIButton?
         private var idleTimerEnforcer: Timer?
+        private var commentsByPathIndex: [Int: String] = [:]
+
        
         /// Map each ARKit feature ID to its latest world-space position
         private var featurePointDict: [UInt64: SIMD3<Float>] = [:]
@@ -572,15 +584,15 @@ struct VisualMapper: UIViewRepresentable {
 
             let pathSnapshot    = self.pathPoints
             let featureSnapshot = Array(self.featurePointDict.values)
+            let commentSnapshot = self.commentsByPathIndex  // index -> text
 
             DispatchQueue.global(qos: .userInitiated).async {
-                // timestamped filename
+                // 0) Име на файл и целеви URL
                 let fmt = DateFormatter()
                 fmt.dateFormat = "yyyy-MM-dd_HH-mm-ss"
                 let ts = fmt.string(from: Date())
                 let fn = "pointcloud_\(ts).ply"
 
-                // target URL in Documents
                 let fm = FileManager.default
                 guard let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first else {
                     print("❌ Couldn't find Documents folder")
@@ -588,15 +600,23 @@ struct VisualMapper: UIViewRepresentable {
                 }
                 let url = docs.appendingPathComponent(fn)
 
-                // open and write
+                // 1) Отвори поток за писане
                 guard let stream = OutputStream(url: url, append: false) else {
                     print("❌ Could not open stream at \(url.path)")
                     return
                 }
-                stream.open(); defer { stream.close() }
+                stream.open()
+                defer { stream.close() }
 
-                // 1) header
-                let header = """
+                // 2) Построи стабилна мапинг таблица: pathIndex -> commentID (0..N-1)
+                let sortedCommentPairs = commentSnapshot.sorted { $0.key < $1.key } // [(pathIdx, text)]
+                var commentIDByPathIndex: [Int: Int] = [:]
+                for (cid, pair) in sortedCommentPairs.enumerated() {
+                    commentIDByPathIndex[pair.0] = cid
+                }
+
+                // 3) HEADER — добавяме property int comment_id + comment редове
+                var header = """
                 ply
                 format ascii 1.0
                 element vertex \(pathSnapshot.count + featureSnapshot.count)
@@ -608,9 +628,20 @@ struct VisualMapper: UIViewRepresentable {
                 property uchar blue
                 property float depth
                 property float heading
-                end_header
-
+                property int comment_id
                 """
+
+                if !sortedCommentPairs.isEmpty {
+                    header += "\n"
+                    for (cid, pair) in sortedCommentPairs.enumerated() {
+                        let idx = pair.0
+                        let text = self.sanitizeForPLYComment(pair.1)
+                        header += "comment annotation id=\(cid) vertex_index=\(idx) text=\(text)\n"
+                    }
+                }
+
+                header += "\nend_header\n"
+
                 if let data = header.data(using: .utf8) {
                     _ = data.withUnsafeBytes { ptr in
                         stream.write(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self),
@@ -618,12 +649,13 @@ struct VisualMapper: UIViewRepresentable {
                     }
                 }
 
-                // 2) waypoints
-                for wp in pathSnapshot {
+                // 4) WAYPOINTS — със comment_id (или -1 ако няма)
+                for (i, wp) in pathSnapshot.enumerated() {
+                    let cid = commentIDByPathIndex[i] ?? -1
                     let line = String(
-                      format: "%.4f %.4f %.4f 255 255 0 %.2f %.0f\n",
-                      wp.position.x, wp.position.y, wp.position.z,
-                      wp.depth, wp.heading
+                        format: "%.4f %.4f %.4f 255 255 0 %.2f %.0f %d\n",
+                        wp.position.x, wp.position.y, wp.position.z,
+                        wp.depth, wp.heading, cid
                     )
                     if let data = line.data(using: .utf8) {
                         _ = data.withUnsafeBytes { ptr in
@@ -633,11 +665,11 @@ struct VisualMapper: UIViewRepresentable {
                     }
                 }
 
-                // 3) features
+                // 5) FEATURES — без коментари: comment_id = -1
                 for fp in featureSnapshot {
                     let line = String(
-                      format: "%.4f %.4f %.4f 0 255 255 -1.0 -1\n",
-                      fp.x, fp.y, fp.z
+                        format: "%.4f %.4f %.4f 0 255 255 -1.0 -1 -1\n",
+                        fp.x, fp.y, fp.z
                     )
                     if let data = line.data(using: .utf8) {
                         _ = data.withUnsafeBytes { ptr in
@@ -647,11 +679,13 @@ struct VisualMapper: UIViewRepresentable {
                     }
                 }
 
+                // 6) Done
                 DispatchQueue.main.async {
                     print("✅ Saved PLY to \(url.path)")
                 }
             }
         }
+
 
 
 
@@ -676,7 +710,8 @@ struct VisualMapper: UIViewRepresentable {
                 featurePointEntities.removeAll()
                 featurePointAnchor = AnchorEntity()
                 arView.scene.addAnchor(featurePointAnchor)
-
+                commentsByPathIndex.removeAll() // <— добавено
+            
                 isSessionActive = true
                 updateLabel()
                 updateMaxDepthLabel()
@@ -787,6 +822,53 @@ struct VisualMapper: UIViewRepresentable {
             }
         }
 
+        @objc func promptForComment() {
+            guard let vc = arView?.parentViewController() else { return }
+            guard !pathPoints.isEmpty else {
+                print("⚠️ No path points yet. Can't attach a comment.")
+                return
+            }
+            let alert = UIAlertController(title: "Add Comment",
+                                          message: "Will attach to last path point (#\(pathPoints.count - 1)).",
+                                          preferredStyle: .alert)
+            alert.addTextField { tf in
+                tf.placeholder = "Your comment"
+                tf.autocapitalizationType = .sentences
+            }
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+            alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak self] _ in
+                guard let self = self else { return }
+                let text = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !text.isEmpty else { return }
+                self.addComment(text)
+            }))
+            vc.safePresent(alert, animated: true)
+        }
+
+        private func addComment(_ text: String) {
+            let idx = pathPoints.count - 1
+            commentsByPathIndex[idx] = text
+
+            // визуален маркер (по желание): малка магента сфера на коментираната точка
+            if let arView = arView, let lastPos = pathPoints.last?.position {
+                let sphere = MeshResource.generateSphere(radius: 0.02)
+                let mat = UnlitMaterial(color: .magenta)
+                let ent = ModelEntity(mesh: sphere, materials: [mat])
+                let anchor = AnchorEntity(world: lastPos)
+                anchor.addChild(ent)
+                arView.scene.addAnchor(anchor)
+            }
+            print("📝 Comment attached to path point \(idx): \(text)")
+        }
+
+        // помощник за безопасен текст в PLY header comments (ASCII, едноредов)
+        private func sanitizeForPLYComment(_ s: String) -> String {
+            let noNewlines = s.replacingOccurrences(of: "\n", with: " ")
+                              .replacingOccurrences(of: "\r", with: " ")
+                              .replacingOccurrences(of: "\"", with: "'")
+            let scalars = noNewlines.unicodeScalars.filter { $0.isASCII && $0.value >= 32 && $0.value < 127 }
+            return String(String.UnicodeScalarView(scalars))
+        }
 
 
         
