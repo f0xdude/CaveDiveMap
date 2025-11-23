@@ -11,7 +11,6 @@ struct VisualMapper: UIViewRepresentable {
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
 
-
         
         // 1️⃣ Turn off the real‐world feed by painting the background a solid color
         //    (you can pick .black, .white, any UIColor… or even .clear if you want translucency)
@@ -40,6 +39,8 @@ struct VisualMapper: UIViewRepresentable {
         config.sceneReconstruction =   [] //.mesh // []  // if not using scene mesh .mesh uses lidar
         config.isLightEstimationEnabled = false
         config.frameSemantics = []        // disable body/person detection
+        config.worldAlignment = .gravityAndHeading   // <— key line
+
         
         // 1) Build and type your formats array explicitly
         let formats: [ARWorldTrackingConfiguration.VideoFormat] =

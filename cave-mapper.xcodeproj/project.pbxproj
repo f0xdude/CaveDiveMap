@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		98205A912D778D4900786E7C /* BLEViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A902D778D4900786E7C /* BLEViewController.swift */; };
-		98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98205A922D77A8DC00786E7C /* BLESonarView.swift */; };
 		982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */; };
 		982347B32CF06028007C87F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982347B22CF06028007C87F7 /* SettingsView.swift */; };
 		9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */; };
@@ -45,8 +43,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		98205A902D778D4900786E7C /* BLEViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEViewController.swift; sourceTree = "<group>"; };
-		98205A922D77A8DC00786E7C /* BLESonarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLESonarView.swift; sourceTree = "<group>"; };
 		982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = cave_arrow.usdz; sourceTree = "<group>"; };
 		982347B22CF06028007C87F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9852A6082CEBBBDF000C2A15 /* cave-mapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cave-mapper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -127,8 +123,6 @@
 			children = (
 				989B57652CED2B4B00E46076 /* Info.plist */,
 				989B57632CED22B700E46076 /* NorthOrientedMapView.swift */,
-				98205A902D778D4900786E7C /* BLEViewController.swift */,
-				98205A922D77A8DC00786E7C /* BLESonarView.swift */,
 				9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */,
 				98E5E9012D9C8B8200B5607B /* VisualMapper.swift */,
 				988743112DE767A300C54C44 /* Point3D 2.swift */,
@@ -302,7 +296,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */,
-				98205A912D778D4900786E7C /* BLEViewController.swift in Sources */,
 				982347B32CF06028007C87F7 /* SettingsView.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
@@ -310,7 +303,6 @@
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
-				98205A932D77A8DC00786E7C /* BLESonarView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
 			);
@@ -471,7 +463,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"cave-mapper/Preview Content\"";
 				DEVELOPMENT_TEAM = 6KXQYJR2YC;
 				ENABLE_PREVIEWS = YES;
@@ -497,7 +489,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -516,7 +508,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"cave-mapper/Preview Content\"";
 				DEVELOPMENT_TEAM = 6KXQYJR2YC;
 				ENABLE_PREVIEWS = YES;
@@ -542,7 +534,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

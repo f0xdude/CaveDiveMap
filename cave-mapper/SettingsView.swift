@@ -175,11 +175,7 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                     }
 
-                    NavigationLink(destination: BLESonarView()) {
-                        Text("(Experimental) BLE SONAR")
-                            .font(.headline)
-                            .foregroundColor(.blue)
-                    }
+                   
                 }
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.inline)

@@ -5,7 +5,7 @@ import UIKit
 
 struct NorthOrientedMapView: View {
     @State private var mapData: [SavedData] = []
-    
+
     // Persistent state variables
     @State private var scale: CGFloat = 1.0
     @State private var rotation: Angle = .zero
