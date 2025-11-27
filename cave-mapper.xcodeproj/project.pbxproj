@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */; };
+		498FFF962ED51436003120C8 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF952ED51436003120C8 /* README.md */; };
+		498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF982ED5145F003120C8 /* map-view.jpg */; };
+		498FFF9B2ED5145F003120C8 /* front.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF972ED5145F003120C8 /* front.jpg */; };
+		498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9D2ED51477003120C8 /* PointCloud2Map.py */; };
+		498FFFA02ED51477003120C8 /* point.ply in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9C2ED51477003120C8 /* point.ply */; };
 		982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */; };
 		982347B32CF06028007C87F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982347B22CF06028007C87F7 /* SettingsView.swift */; };
 		9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */; };
@@ -43,6 +49,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud3DView.swift; sourceTree = "<group>"; };
+		498FFF952ED51436003120C8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		498FFF972ED5145F003120C8 /* front.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = front.jpg; sourceTree = "<group>"; };
+		498FFF982ED5145F003120C8 /* map-view.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "map-view.jpg"; sourceTree = "<group>"; };
+		498FFF9C2ED51477003120C8 /* point.ply */ = {isa = PBXFileReference; lastKnownFileType = text; path = point.ply; sourceTree = "<group>"; };
+		498FFF9D2ED51477003120C8 /* PointCloud2Map.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = PointCloud2Map.py; sourceTree = "<group>"; };
 		982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = cave_arrow.usdz; sourceTree = "<group>"; };
 		982347B22CF06028007C87F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9852A6082CEBBBDF000C2A15 /* cave-mapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cave-mapper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,6 +102,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		498FFF992ED5145F003120C8 /* Manual */ = {
+			isa = PBXGroup;
+			children = (
+				498FFF972ED5145F003120C8 /* front.jpg */,
+				498FFF982ED5145F003120C8 /* map-view.jpg */,
+			);
+			path = Manual;
+			sourceTree = "<group>";
+		};
+		498FFF9E2ED51477003120C8 /* tools */ = {
+			isa = PBXGroup;
+			children = (
+				498FFF9C2ED51477003120C8 /* point.ply */,
+				498FFF9D2ED51477003120C8 /* PointCloud2Map.py */,
+			);
+			path = tools;
+			sourceTree = "<group>";
+		};
 		982268BC2DA4820C00E9A5E3 /* 3d assets */ = {
 			isa = PBXGroup;
 			children = (
@@ -131,10 +161,14 @@
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
+				498FFF9E2ED51477003120C8 /* tools */,
+				498FFF992ED5145F003120C8 /* Manual */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
+				498FFF952ED51436003120C8 /* README.md */,
 				9852A60F2CEBBBE0000C2A15 /* Assets.xcassets */,
 				982268BC2DA4820C00E9A5E3 /* 3d assets */,
 				9852A6112CEBBBE0000C2A15 /* Preview Content */,
+				496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */,
 			);
 			path = "cave-mapper";
 			sourceTree = "<group>";
@@ -228,7 +262,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1430;
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					9852A6072CEBBBDF000C2A15 = {
 						CreatedOnToolsVersion = 14.3.1;
@@ -270,6 +304,11 @@
 			files = (
 				9852A6132CEBBBE0000C2A15 /* Preview Assets.xcassets in Resources */,
 				982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */,
+				498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */,
+				498FFFA02ED51477003120C8 /* point.ply in Resources */,
+				498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */,
+				498FFF9B2ED5145F003120C8 /* front.jpg in Resources */,
+				498FFF962ED51436003120C8 /* README.md in Resources */,
 				9852A6102CEBBBE0000C2A15 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -303,6 +342,7 @@
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
+				496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
 			);
@@ -397,6 +437,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -451,6 +492,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
@@ -489,7 +531,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -534,7 +576,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = CaveDiveMap;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

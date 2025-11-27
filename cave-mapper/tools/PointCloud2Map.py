@@ -8,6 +8,7 @@ from shapely.geometry import MultiPoint, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 from scipy.spatial import Delaunay
 from plyfile import PlyData
+import re
 
 def read_ply(filepath):
     plydata = PlyData.read(filepath)
@@ -95,6 +96,17 @@ def plot_projection(wall_pts, centerline_pts, view='top', alpha=0.01, ax=None):
 
 def main():
     filepath = "point.ply"  # Update with your file path
+
+    # Ask for cave name
+    cave_name = input("Enter cave name (for title and filename): ").strip()
+    if not cave_name:
+        cave_name = "Unnamed Cave"
+
+    # Create a filesystem-safe filename fragment from the cave name
+    safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', cave_name).strip('_')
+    if not safe_name:
+        safe_name = "unnamed_cave"
+
     points, colors = read_ply(filepath)
     centerline_pts, wall_pts = segment_pointcloud(points, colors)
 
@@ -121,8 +133,8 @@ def main():
     plot_projection(wall_pts, centerline_pts, view='top', alpha=0.2, ax=axes[0])
     plot_projection(wall_pts, centerline_pts, view='side', alpha=0.2, ax=axes[1])
 
-    # Annotate total distance
-    fig.suptitle(f"Cave Map | Total Length: {total_distance:.2f} m | Max Depth: {-max_depth:.2f} m",
+    # Annotate total distance and include cave name
+    fig.suptitle(f"{cave_name} | Total Length: {total_distance:.2f} m | Max Depth: {-max_depth:.2f} m",
      fontsize=14, fontweight='bold')
 
     # Add compass rose as an inset in the top view
@@ -145,8 +157,10 @@ def main():
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     
-    # Save the figure as a PDF
-    fig.savefig("cave_map.pdf", format="pdf")
+    # Save the figure as a PDF; include cave name in filename
+    output_filename = f"cave_map_{safe_name}.pdf"
+    fig.savefig(output_filename, format="pdf")
+    print(f"Saved map to {output_filename}")
 
     plt.show()
 

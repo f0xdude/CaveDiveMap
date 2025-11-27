@@ -5,11 +5,15 @@ import SceneKit
 struct PointCloud3DView: View {
     let points: [Point3D]
     let centerline: [Point3D]
-    var tubeRadius: CGFloat = 0.5        // meters
+    var tubeRadius: CGFloat = 0.5        // fallback/base radius in meters
     var tubeSides: Int = 14              // segments around the tube
     var showAxes: Bool = true
     var showGrid: Bool = false
     var buildTunnelMesh: Bool = true
+    var useVariableRadius: Bool = true   // derive radius from wall distances
+
+    // NEW: external control over tunnel opacity (0.0 ... 1.0)
+    @Binding var tunnelOpacity: CGFloat
 
     var body: some View {
         SceneKitContainer(points: points,
@@ -18,7 +22,9 @@ struct PointCloud3DView: View {
                           tubeSides: tubeSides,
                           showAxes: showAxes,
                           showGrid: showGrid,
-                          buildTunnelMesh: buildTunnelMesh)
+                          buildTunnelMesh: buildTunnelMesh,
+                          useVariableRadius: useVariableRadius,
+                          tunnelOpacity: tunnelOpacity)
             .ignoresSafeArea(.all, edges: .bottom)
     }
 }
@@ -32,6 +38,8 @@ private struct SceneKitContainer: UIViewRepresentable {
     let showAxes: Bool
     let showGrid: Bool
     let buildTunnelMesh: Bool
+    let useVariableRadius: Bool
+    let tunnelOpacity: CGFloat
 
     func makeUIView(context: Context) -> SCNView {
         let view = SCNView()
@@ -54,7 +62,7 @@ private struct SceneKitContainer: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
-        // If you need to rebuild on changes, do it here:
+        // Rebuild the scene when inputs change (including opacity)
         uiView.scene = buildScene()
     }
 
@@ -98,7 +106,7 @@ private struct SceneKitContainer: UIViewRepresentable {
         let dir = SCNNode()
         dir.light = SCNLight()
         dir.light?.type = .directional
-        dir.eulerAngles = SCNVector3(-.pi/3, .pi/4, 0)
+        dir.eulerAngles = SCNVector3(-Float.pi/3, Float.pi/4, 0)
         dir.light?.intensity = 800
         scene.rootNode.addChildNode(dir)
 
@@ -114,17 +122,22 @@ private struct SceneKitContainer: UIViewRepresentable {
             scene.rootNode.addChildNode(cloudNode)
         }
 
-        if buildTunnelMesh, let tube = makeTunnelMeshNode(centerline: centerline,
-                                                          radius: tubeRadius,
-                                                          sides: tubeSides) {
+        if buildTunnelMesh,
+           let tube = makeTunnelMeshNode(centerline: centerline,
+                                         points: points,
+                                         baseRadius: tubeRadius,
+                                         sides: tubeSides,
+                                         variableRadius: useVariableRadius,
+                                         opacity: tunnelOpacity) {
             scene.rootNode.addChildNode(tube)
         }
 
         // Frame to data center for better camera defaults
-        if let bounds = scene.rootNode.boundingBoxIfValid {
-            let center = (bounds.min + bounds.max) * 0.5
-            scene.rootNode.position = -center
-        }
+        let (minV, maxV) = scene.rootNode.boundingBox
+        let center = SCNVector3((minV.x + maxV.x) * 0.5,
+                                (minV.y + maxV.y) * 0.5,
+                                (minV.z + maxV.z) * 0.5)
+        scene.rootNode.position = SCNVector3(-center.x, -center.y, -center.z)
 
         return scene
     }
@@ -139,8 +152,8 @@ private struct SceneKitContainer: UIViewRepresentable {
         let colors = pts.map { $0.color } // already 0..1
 
         // SceneKit geometry sources
-        let posData = Data(bytes: positions, count: MemoryLayout<SIMD3<Float>>.stride * positions.count)
-        let colData = Data(bytes: colors, count: MemoryLayout<SIMD3<Float>>.stride * colors.count)
+        let posData = positions.withUnsafeBytes { Data($0) }
+        let colData = colors.withUnsafeBytes { Data($0) }
 
         let positionSource = SCNGeometrySource(
             data: posData,
@@ -165,8 +178,8 @@ private struct SceneKitContainer: UIViewRepresentable {
         )
 
         // Indices for points 0..N-1
-        var indices = Array(0..<positions.count).map { UInt32($0) }
-        let indexData = Data(bytes: &indices, count: MemoryLayout<UInt32>.stride * indices.count)
+        let indices = Array(0..<positions.count).map { UInt32($0) }
+        let indexData = indices.withUnsafeBytes { Data($0) }
 
         let element = SCNGeometryElement(
             data: indexData,
@@ -176,20 +189,16 @@ private struct SceneKitContainer: UIViewRepresentable {
         )
 
         let geom = SCNGeometry(sources: [positionSource, colorSource], elements: [element])
-        // Point size (SceneKit pointSize is in pixels; enable pointSizeAttenuation for distance scaling)
-        geom.firstMaterial = {
-            let m = SCNMaterial()
-            m.isDoubleSided = true
-            m.lightingModel = .constant
-            m.writesToDepthBuffer = true
-            m.readsFromDepthBuffer = true
-            // Enable per-vertex color
-            m.diffuse.contents = UIColor.white
-            return m
-        }()
+        // Point size hint (may require shader modifiers for full control on all devices)
+        let mat = SCNMaterial()
+        mat.isDoubleSided = true
+        mat.lightingModel = .constant
+        mat.writesToDepthBuffer = true
+        mat.readsFromDepthBuffer = true
+        mat.diffuse.contents = UIColor.white
+        geom.firstMaterial = mat
 
-        // SceneKit has a material property for point size through shader modifiers or geometry property
-        // Use a simple approach: set geometry pointSize via key
+        // Best-effort point size controls (not guaranteed on all GPUs)
         geom.setValue(NSNumber(value: 3.0), forKey: "pointSize")
         geom.setValue(NSNumber(value: 1), forKey: "pointSizeAttenuation")
 
@@ -197,15 +206,40 @@ private struct SceneKitContainer: UIViewRepresentable {
         return node
     }
 
-    // Tube mesh along centerline: sweep a circle along the path
-    private func makeTunnelMeshNode(centerline: [Point3D], radius: CGFloat, sides: Int) -> SCNNode? {
+    // Variable-radius tube mesh along centerline: sweep a circle with per-ring radius
+    private func makeTunnelMeshNode(centerline: [Point3D],
+                                    points: [Point3D],
+                                    baseRadius: CGFloat,
+                                    sides: Int,
+                                    variableRadius: Bool,
+                                    opacity: CGFloat) -> SCNNode? {
         guard centerline.count >= 2, sides >= 3 else { return nil }
+
+        // Split walls vs centerline (yellow-ish are centerline)
+        let isYellow: (Point3D) -> Bool = { p in
+            p.color.x > 0.8 && p.color.y > 0.8 && p.color.z < 0.3
+        }
+        let wallPoints = points.filter { !isYellow($0) }
+
+        // Compute per-ring radii from wall distances
+        let radii: [Float]
+        if variableRadius {
+            radii = computeVariableRadii(centerline: centerline,
+                                         wallPoints: wallPoints,
+                                         fallback: Float(baseRadius),
+                                         searchRadius: 5.0,
+                                         minNeighbors: 10,
+                                         maxNeighbors: 200,
+                                         clamp: (min: 0.1, max: 5.0),
+                                         smoothWindow: 5)
+        } else {
+            radii = Array(repeating: Float(baseRadius), count: centerline.count)
+        }
 
         // Build rings
         var ringVertices: [[SIMD3<Float>]] = []
         ringVertices.reserveCapacity(centerline.count)
 
-        // A simple, robust frame: use world up as reference and compute right/normal
         let worldUp = SIMD3<Float>(0, 1, 0)
         let twoPi = Float.pi * 2
         let dTheta = twoPi / Float(sides)
@@ -228,19 +262,18 @@ private struct SceneKitContainer: UIViewRepresentable {
                 }
             }()
 
-            // If tangent is nearly parallel to worldUp, choose another up to avoid instability
             let refUp: SIMD3<Float> = abs(simd_dot(tangent, worldUp)) > 0.95 ? SIMD3<Float>(1, 0, 0) : worldUp
-
             let right = simd_normalize(simd_cross(tangent, refUp))
             let normal = simd_normalize(simd_cross(right, tangent))
 
+            let r = radii[i]
             var ring: [SIMD3<Float>] = []
             ring.reserveCapacity(sides)
 
             for s in 0..<sides {
                 let theta = Float(s) * dTheta
                 let dir = cos(theta) * normal + sin(theta) * right
-                let v = p + Float(radius) * dir
+                let v = p + r * dir
                 ring.append(v)
             }
             ringVertices.append(ring)
@@ -272,7 +305,7 @@ private struct SceneKitContainer: UIViewRepresentable {
         }
 
         // Geometry sources
-        let posData = Data(bytes: vertices, count: MemoryLayout<SIMD3<Float>>.stride * vertices.count)
+        let posData = vertices.withUnsafeBytes { Data($0) }
         let positionSource = SCNGeometrySource(
             data: posData,
             semantic: .vertex,
@@ -284,7 +317,7 @@ private struct SceneKitContainer: UIViewRepresentable {
             dataStride: MemoryLayout<SIMD3<Float>>.stride
         )
 
-        let indexData = Data(bytes: indices, count: MemoryLayout<UInt32>.stride * indices.count)
+        let indexData = indices.withUnsafeBytes { Data($0) }
         let element = SCNGeometryElement(
             data: indexData,
             primitiveType: .triangles,
@@ -293,16 +326,88 @@ private struct SceneKitContainer: UIViewRepresentable {
         )
 
         let geom = SCNGeometry(sources: [positionSource], elements: [element])
-        geom.firstMaterial = {
-            let m = SCNMaterial()
-            m.diffuse.contents = UIColor.systemTeal.withAlphaComponent(0.35)
-            m.emission.contents = UIColor.systemTeal.withAlphaComponent(0.15)
-            m.isDoubleSided = true
-            m.lightingModel = .physicallyBased
-            return m
-        }()
+        let alpha = max(0.0, min(1.0, opacity))
+        let m = SCNMaterial()
+        m.diffuse.contents = UIColor.systemTeal.withAlphaComponent(alpha)
+        m.emission.contents = UIColor.systemTeal.withAlphaComponent(alpha * 0.4)
+        m.isDoubleSided = true
+        m.lightingModel = .physicallyBased
+        geom.firstMaterial = m
 
         return SCNNode(geometry: geom)
+    }
+
+    // MARK: - Variable radius computation
+
+    private func computeVariableRadii(centerline: [Point3D],
+                                      wallPoints: [Point3D],
+                                      fallback: Float,
+                                      searchRadius: Float,
+                                      minNeighbors: Int,
+                                      maxNeighbors: Int,
+                                      clamp: (min: Float, max: Float),
+                                      smoothWindow: Int) -> [Float] {
+        guard !centerline.isEmpty else { return [] }
+        if wallPoints.isEmpty {
+            return Array(repeating: fallback, count: centerline.count)
+        }
+
+        // Precompute wall positions
+        let wallPos: [SIMD3<Float>] = wallPoints.map { SIMD3<Float>($0.x, $0.y, $0.z) }
+        let sr2 = searchRadius * searchRadius
+
+        var radii = [Float](repeating: fallback, count: centerline.count)
+
+        for (i, c) in centerline.enumerated() {
+            let cpos = SIMD3<Float>(c.x, c.y, c.z)
+
+            // Gather neighbors within radius, early exit when enough found
+            var dists: [Float] = []
+            dists.reserveCapacity(min(maxNeighbors, 256))
+
+            for p in wallPos {
+                let d2 = simd_length_squared(p - cpos)
+                if d2 <= sr2 {
+                    dists.append(sqrt(d2))
+                    if dists.count >= maxNeighbors { break }
+                }
+            }
+
+            let r: Float
+            if dists.count >= minNeighbors {
+                dists.sort()
+                // Median
+                let mid = dists.count / 2
+                r = dists[mid]
+            } else if !dists.isEmpty {
+                // Average if few
+                r = dists.reduce(0, +) / Float(dists.count)
+            } else {
+                r = fallback
+            }
+
+            radii[i] = max(clamp.min, min(clamp.max, r))
+        }
+
+        // Smooth with moving average
+        if smoothWindow > 1, radii.count > 2 {
+            let half = smoothWindow / 2
+            var smoothed = radii
+            for i in 0..<radii.count {
+                var sum: Float = 0
+                var count: Int = 0
+                let a = max(0, i - half)
+                let b = min(radii.count - 1, i + half)
+                for j in a...b {
+                    sum += radii[j]
+                    count += 1
+                }
+                smoothed[i] = sum / Float(count)
+            }
+            radii = smoothed
+        }
+
+        return radii
     }
 
     // MARK: - Helpers
@@ -314,7 +419,7 @@ private struct SceneKitContainer: UIViewRepresentable {
         x.firstMaterial?.diffuse.contents = UIColor.red
         let xNode = SCNNode(geometry: x)
         xNode.position = SCNVector3(length/2, 0, 0)
-        xNode.eulerAngles = SCNVector3(0, 0, .pi/2)
+        xNode.eulerAngles = SCNVector3(0, 0, Float.pi/2)
         node.addChildNode(xNode)
 
         let y = SCNCylinder(radius: thickness, height: length)
@@ -327,7 +432,7 @@ private struct SceneKitContainer: UIViewRepresentable {
         z.firstMaterial?.diffuse.contents = UIColor.blue
         let zNode = SCNNode(geometry: z)
         zNode.position = SCNVector3(0, 0, length/2)
-        zNode.eulerAngles = SCNVector3(.pi/2, 0, 0)
+        zNode.eulerAngles = SCNVector3(Float.pi/2, 0, 0)
         node.addChildNode(zNode)
 
         return node
@@ -343,20 +448,23 @@ private struct SceneKitContainer: UIViewRepresentable {
         material.lightingModel = .constant
 
         // Build many thin lines along X and Z on Y=0 plane
-        for i in stride(from: -half, through: half, by: step) {
+        var i = -half
+        while i <= half {
             // Line parallel to X (vary Z)
             let geomX = SCNBox(width: size, height: 0.001, length: 0.001, chamferRadius: 0)
             geomX.firstMaterial = material
             let nodeX = SCNNode(geometry: geomX)
-            nodeX.position = SCNVector3(0, 0, i)
+            nodeX.position = SCNVector3(0, 0, Float(i))
             parent.addChildNode(nodeX)
 
             // Line parallel to Z (vary X)
             let geomZ = SCNBox(width: 0.001, height: 0.001, length: size, chamferRadius: 0)
             geomZ.firstMaterial = material
             let nodeZ = SCNNode(geometry: geomZ)
-            nodeZ.position = SCNVector3(i, 0, 0)
+            nodeZ.position = SCNVector3(Float(i), 0, 0)
             parent.addChildNode(nodeZ)
+
+            i += step
         }
         return parent
     }
@@ -364,10 +472,9 @@ private struct SceneKitContainer: UIViewRepresentable {
 
 // MARK: - Small math helpers
 
-private extension (min: SCNVector3, max: SCNVector3) {
-    static func + (lhs: (min: SCNVector3, max: SCNVector3), rhs: (min: SCNVector3, max: SCNVector3)) -> (min: SCNVector3, max: SCNVector3) {
-        return (lhs.min + rhs.min, lhs.max + rhs.max)
-    }
+// Unary negation for SCNVector3
+prefix func - (v: SCNVector3) -> SCNVector3 {
+    SCNVector3(-v.x, -v.y, -v.z)
 }
 
 private extension SCNVector3 {
@@ -380,13 +487,4 @@ private extension SIMD3 where Scalar == Float {
     static func + (a: SIMD3<Float>, b: SIMD3<Float>) -> SIMD3<Float> { SIMD3(a.x + b.x, a.y + b.y, a.z + b.z) }
     static func - (a: SIMD3<Float>, b: SIMD3<Float>) -> SIMD3<Float> { SIMD3(a.x - b.x, a.y - b.y, a.z - b.z) }
     static func * (a: SIMD3<Float>, s: Float) -> SIMD3<Float> { SIMD3(a.x * s, a.y * s, a.z * s) }
-}
-
-private extension SCNNode {
-    var boundingBoxIfValid: (min: SCNVector3, max: SCNVector3)? {
-        var minV = SCNVector3Zero
-        var maxV = SCNVector3Zero
-        let ok = getBoundingBoxMin(&minV, max: &maxV)
-        return ok ? (minV, maxV) : nil
-    }
 }

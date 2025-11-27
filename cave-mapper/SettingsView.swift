@@ -47,6 +47,7 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())
+                        .disabled(viewModel.isCalibrating)
                     }
 
                     // 🧪 Calibration Thresholds
@@ -60,8 +61,8 @@ struct SettingsView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
+                            .disabled(viewModel.isCalibrating)
                             .onReceive(Just(lowThresholdText)) { newValue in
-                                // Break up filter into explicit loop to aid type-checking
                                 let allowed = "0123456789" + decimalSeparator
                                 var filtered = ""
                                 for char in newValue {
@@ -86,8 +87,8 @@ struct SettingsView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
+                            .disabled(viewModel.isCalibrating)
                             .onReceive(Just(highThresholdText)) { newValue in
-                                // Break up filter into explicit loop
                                 let allowed = "0123456789" + decimalSeparator
                                 var filtered = ""
                                 for char in newValue {
@@ -103,8 +104,25 @@ struct SettingsView: View {
                             }
                         }
 
-                        Button(action: viewModel.runManualCalibration) {
-                            Text("Detect Automatically")
+                        if viewModel.isCalibrating {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Rotate the wheel steadily…")
+                                HStack {
+                                    ProgressView()
+                                    Text("Calibrating… \(viewModel.calibrationSecondsRemaining)s left")
+                                }
+                                Button(role: .destructive) {
+                                    viewModel.cancelCalibration()
+                                } label: {
+                                    Text("Cancel Calibration")
+                                }
+                            }
+                        } else {
+                            Button {
+                                viewModel.startCalibration(durationSeconds: 10)
+                            } label: {
+                                Text("Start Calibration (10s)")
+                            }
                         }
                     }
 
@@ -119,8 +137,8 @@ struct SettingsView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
+                            .disabled(viewModel.isCalibrating)
                             .onReceive(Just(wheelDiameterText)) { newValue in
-                                // Break up filter into explicit loop
                                 let allowed = "0123456789" + decimalSeparator
                                 var filtered = ""
                                 for char in newValue {
@@ -143,6 +161,7 @@ struct SettingsView: View {
                             Text("Reset to Defaults")
                                 .foregroundColor(.red)
                         }
+                        .disabled(viewModel.isCalibrating)
                     }
 
                     // 📊 Magnetic Debug Info
@@ -174,8 +193,6 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundColor(.blue)
                     }
-
-                   
                 }
                 .navigationTitle("Settings")
                 .navigationBarTitleDisplayMode(.inline)
@@ -191,6 +208,13 @@ struct SettingsView: View {
                 .onDisappear {
                     UIApplication.shared.isIdleTimerDisabled = false
                 }
+                // Refresh text fields whenever thresholds change (e.g., after calibration)
+                .onChange(of: viewModel.lowThreshold) { _, newValue in
+                    lowThresholdText = numberFormatter.string(from: NSNumber(value: newValue)) ?? ""
+                }
+                .onChange(of: viewModel.highThreshold) { _, newValue in
+                    highThresholdText = numberFormatter.string(from: NSNumber(value: newValue)) ?? ""
+                }
             }
         }
     }
@@ -202,6 +226,8 @@ struct SettingsView: View {
         } else {
             viewModel.lowThreshold = 0
         }
+        // Persist immediately so it survives reboot even if calibration isn’t run afterwards
+        UserDefaults.standard.set(viewModel.lowThreshold, forKey: "lowThreshold")
         lowThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.lowThreshold)) ?? ""
     }
 
@@ -211,6 +237,8 @@ struct SettingsView: View {
         } else {
             viewModel.highThreshold = 0
         }
+        // Persist immediately so it survives reboot even if calibration isn’t run afterwards
+        UserDefaults.standard.set(viewModel.highThreshold, forKey: "highThreshold")
         highThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.highThreshold)) ?? ""
     }
 

@@ -10,8 +10,6 @@ enum ParameterType: String, CaseIterable {
     case down = "Down"
 }
 
-
-
 struct SaveDataView: View {
     
     @State private var pointNumber: Int = DataManager.loadPointNumber()
@@ -28,82 +26,195 @@ struct SaveDataView: View {
     // Track which parameter is currently selected.
     @State private var selectedParameter: ParameterType = .depth
     
-    // Used to detect a long press on the back button.
-    @GestureState private var isLongPressing = false
-    
     @Environment(\.presentationMode) var presentationMode
 
-    var body: some View {
-        VStack {
-            Text("Point Number: \(pointNumber)")
-                .font(.title2)
-                .padding()
-            
-            Text("Distance: \(distance, specifier: "%.2f") meters")
-                .font(.title2)
-            Text("Heading: \(magnetometer.currentHeading?.magneticHeading ?? 0, specifier: "%.2f")°")
-                .font(.title2)
+    // Shared button sizing (match Save button)
+    private let bigButtonSize: CGFloat = 70
+    private let smallIconSize: CGFloat = 28
 
-            
-            // Display the currently selected parameter and its value.
-            Text("\(selectedParameter.rawValue): \(currentParameterValue, specifier: "%.2f") m")
-                .font(.title2)
-                .padding()
-            
+    // Auto-repeat timers for press-and-hold
+    @State private var incrementTimer: Timer?
+    @State private var decrementTimer: Timer?
+
+    // Hold-threshold work items (to decide tap vs hold)
+    @State private var incHoldWork: DispatchWorkItem?
+    @State private var decHoldWork: DispatchWorkItem?
+
+    // Whether the long-press path is active (to suppress tap on release)
+    @State private var isIncrementHolding = false
+    @State private var isDecrementHolding = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            // Header info card
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Point Number: \(pointNumber)")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                Text("Distance: \(distance, specifier: "%.2f") m")
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                Text("Heading: \(magnetometer.currentHeading?.magneticHeading ?? 0, specifier: "%.2f")°")
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(26)
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+            .padding(.top, 8)
+
+            Divider().padding(.horizontal, 4)
+
+            // Selected parameter card
+            VStack(spacing: 8) {
+                Text(selectedParameter.rawValue)
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundColor(.primary)
+                Text("\(currentParameterValue, specifier: "%.2f") m")
+                    .font(.system(size: 36, weight: .black, design: .rounded))
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(16)
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+
+            Divider().padding(.horizontal, 4)
+
+            // Big control buttons row
             ZStack {
-                // Minus button: decreases the value for the current parameter.
-                Button(action: { decrementSelectedValue() }) {
+                // Minus button with tap vs hold handling
+                Button(action: {
+                    // Tap handled on release in gesture below
+                }) {
                     ZStack {
-                        Circle().fill(Color.orange).frame(width: 50, height: 50)
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: bigButtonSize, height: bigButtonSize)
                         Image(systemName: "minus")
                             .foregroundColor(.white)
-                            .font(.title2)
+                            .font(.system(size: smallIconSize, weight: .bold))
+                            .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
-                .offset(x: -70, y: 140)
-                
-                // Save button.
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            // On first touch-down: schedule a hold task if not already
+                            if decHoldWork == nil && !isDecrementHolding {
+                                let work = DispatchWorkItem {
+                                    // Hold threshold passed: start repeating and mark holding
+                                    isDecrementHolding = true
+                                    startDecrementTimer()
+                                }
+                                decHoldWork = work
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+                            }
+                        }
+                        .onEnded { _ in
+                            // Touch up: if hold not started, treat as tap (-1)
+                            if !isDecrementHolding {
+                                decrement(by: 1)
+                            }
+                            // Cleanup
+                            decHoldWork?.cancel()
+                            decHoldWork = nil
+                            stopDecrementTimer()
+                            isDecrementHolding = false
+                        }
+                )
+                .accessibilityLabel("Decrease \(selectedParameter.rawValue)")
+                .offset(x: -100, y: 80)
+
+                // Save (center)
                 Button(action: { saveData() }) {
                     ZStack {
-                        Circle().fill(Color.green).frame(width: 70, height: 70)
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: bigButtonSize, height: bigButtonSize)
                         Text("Save")
                             .foregroundColor(.white)
-                            .bold()
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
-                .offset(y: 200)
-                
-                // Plus button: increases the value for the current parameter.
-                Button(action: { incrementSelectedValue() }) {
+                .accessibilityLabel("Save point")
+                .offset(y: 120)
+
+                // Plus button with tap vs hold handling
+                Button(action: {
+                    // Tap handled on release in gesture below
+                }) {
                     ZStack {
-                        Circle().fill(Color.orange).frame(width: 50, height: 50)
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: bigButtonSize, height: bigButtonSize)
                         Image(systemName: "plus")
                             .foregroundColor(.white)
-                            .font(.title2)
+                            .font(.system(size: smallIconSize, weight: .bold))
+                            .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
-                .offset(x: 70, y: 140)
-                
-                // Back button: tap cycles parameters; long press (3 sec) dismisses.
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if incHoldWork == nil && !isIncrementHolding {
+                                let work = DispatchWorkItem {
+                                    isIncrementHolding = true
+                                    startIncrementTimer()
+                                }
+                                incHoldWork = work
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+                            }
+                        }
+                        .onEnded { _ in
+                            if !isIncrementHolding {
+                                increment(by: 1)
+                            }
+                            incHoldWork?.cancel()
+                            incHoldWork = nil
+                            stopIncrementTimer()
+                            isIncrementHolding = false
+                        }
+                )
+                .accessibilityLabel("Increase \(selectedParameter.rawValue)")
+                .offset(x: 100, y: 80)
+
+                // Cycle parameter (make same size as Save)
                 Button(action: { cycleParameter() }) {
                     ZStack {
-                        Circle().fill(Color.blue).frame(width: 50, height: 50)
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: bigButtonSize, height: bigButtonSize)
                         Image(systemName: "arrow.trianglehead.2.clockwise")
                             .foregroundColor(.white)
-                            .font(.title2)
+                            .font(.system(size: smallIconSize, weight: .bold))
+                            .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
-//                .highPriorityGesture(
-//                    LongPressGesture(minimumDuration: 3.0)
-//                        .updating($isLongPressing) { currentState, gestureState, transaction in
-//                            gestureState = currentState
-//                        }
-//                        .onEnded { _ in
-//                            presentationMode.wrappedValue.dismiss()
-//                        }
-//                )
-                .offset(x: 120, y: 200)
+                .accessibilityLabel("Cycle parameter")
+                .offset(x: 150, y: 150)
             }
+            .padding(.bottom, 8)
+        }
+        .padding()
+        .onDisappear {
+            // Safety: stop timers and cancel pending holds if view goes away
+            stopIncrementTimer()
+            stopDecrementTimer()
+            incHoldWork?.cancel(); incHoldWork = nil
+            decHoldWork?.cancel(); decHoldWork = nil
+            isIncrementHolding = false
+            isDecrementHolding = false
         }
     }
     
@@ -117,27 +228,53 @@ struct SaveDataView: View {
         case .down: return down
         }
     }
-    
-    // Increases the value for the currently selected parameter.
-    private func incrementSelectedValue() {
+
+    // Helpers to change by an arbitrary step (used by tap and timers)
+    private func increment(by step: Double) {
         switch selectedParameter {
-        case .depth: depth += 1
-        case .left: left += 1
-        case .right: right += 1
-        case .up: up += 1
-        case .down: down += 1
+        case .depth: depth += step
+        case .left: left += step
+        case .right: right += step
+        case .up: up += step
+        case .down: down += step
         }
     }
-    
-    // Decreases the value for the currently selected parameter.
-    private func decrementSelectedValue() {
+
+    private func decrement(by step: Double) {
         switch selectedParameter {
-        case .depth: depth -= 1
-        case .left: left -= 1
-        case .right: right -= 1
-        case .up: up -= 1
-        case .down: down -= 1
+        case .depth: depth = max(0, depth - step)
+        case .left: left = max(0, left - step)
+        case .right: right = max(0, right - step)
+        case .up: up = max(0, up - step)
+        case .down: down = max(0, down - step)
         }
+    }
+
+    // Auto-repeat management (fires only after hold threshold)
+    private func startIncrementTimer() {
+        stopIncrementTimer()
+        incrementTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            increment(by: 10)
+        }
+        RunLoop.current.add(incrementTimer!, forMode: .common)
+    }
+
+    private func stopIncrementTimer() {
+        incrementTimer?.invalidate()
+        incrementTimer = nil
+    }
+
+    private func startDecrementTimer() {
+        stopDecrementTimer()
+        decrementTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            decrement(by: 10)
+        }
+        RunLoop.current.add(decrementTimer!, forMode: .common)
+    }
+
+    private func stopDecrementTimer() {
+        decrementTimer?.invalidate()
+        decrementTimer = nil
     }
     
     // Cycles to the next parameter (Depth → Left → Right → Up → Down → Depth …).

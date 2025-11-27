@@ -14,7 +14,9 @@ struct VisualMapper: UIViewRepresentable {
         
         // 1️⃣ Turn off the real‐world feed by painting the background a solid color
         //    (you can pick .black, .white, any UIColor… or even .clear if you want translucency)
-        arView.environment.background = .color(.clear)
+        //arView.environment.background = .color(.clear)
+        arView.environment.background = .cameraFeed()
+
 
         // 2️⃣ Only show feature points in the debug overlay
         arView.debugOptions = [.showFeaturePoints]
@@ -37,9 +39,14 @@ struct VisualMapper: UIViewRepresentable {
         config.planeDetection = []
         config.environmentTexturing = .automatic
         config.sceneReconstruction =   [] //.mesh // []  // if not using scene mesh .mesh uses lidar
-        config.isLightEstimationEnabled = false
+        config.isLightEstimationEnabled = true
         config.frameSemantics = []        // disable body/person detection
-        config.worldAlignment = .gravityAndHeading   // <— key line
+        //config.worldAlignment = .gravityAndHeading   // BUG; magnetometer drift causes the whole map to drift systematically and warp into a spiral
+        config.worldAlignment = .gravity
+        //config.isAutoFocusEnabled = false // disable autofocus
+        config.planeDetection = [.horizontal, .vertical]
+
+
 
         
         // 1) Build and type your formats array explicitly
@@ -148,6 +155,19 @@ struct VisualMapper: UIViewRepresentable {
             driftLabel.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20)
         ])
 
+        // Heading label (shows True/Magnetic, accuracy)
+        let headingLabel = UILabel()
+        headingLabel.textColor = .white
+        headingLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .medium)
+        headingLabel.translatesAutoresizingMaskIntoConstraints = false
+        headingLabel.tag = 105
+        headingLabel.text = "Heading: --"
+        arView.addSubview(headingLabel)
+
+        NSLayoutConstraint.activate([
+            headingLabel.topAnchor.constraint(equalTo: arView.topAnchor, constant: 190),
+            headingLabel.leadingAnchor.constraint(equalTo: arView.leadingAnchor, constant: 20)
+        ])
         
         NSLayoutConstraint.activate([
 //            resetButton.trailingAnchor.constraint(equalTo: arView.centerXAnchor, constant: -40),
@@ -228,6 +248,20 @@ struct VisualMapper: UIViewRepresentable {
 
         func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
             currentHeading = newHeading
+            // Update heading UI when we receive new heading
+            DispatchQueue.main.async {
+                self.updateHeadingLabel(with: newHeading)
+            }
+        }
+        
+        // Ask system to show calibration UI when heading accuracy is poor or unknown
+        func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool {
+            // Show calibration if accuracy is unknown or worse than 15 degrees
+            if let h = currentHeading {
+                return h.headingAccuracy < 0 || h.headingAccuracy > 15
+            } else {
+                return true
+            }
         }
 
         func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {
@@ -319,7 +353,8 @@ struct VisualMapper: UIViewRepresentable {
                 let headingDiff = abs(prev.heading - heading)
 
                 // ✅ Looser match thresholds
-                if spatialDistance < 0.5 && headingDiff < 25 {
+                //if spatialDistance < 0.5 && headingDiff < 25 {
+                if spatialDistance < 0.5{
                     let drift = simd_length(prev.position - currentPosition)
 
                     if drift < lowestDrift && drift > 0.1 {
@@ -440,8 +475,9 @@ struct VisualMapper: UIViewRepresentable {
             
             guard let arView = arView else { return }
 
-            let heading = currentHeading?.magneticHeading ?? -1
-            _ = checkForLoopClosure(at: position, heading: heading)
+            let headingInfo = preferredHeading()
+            let headingValue = headingInfo.value ?? -1
+            _ = checkForLoopClosure(at: position, heading: headingValue)
 
             // Direction to previous point (local path orientation)
             var direction = SIMD3<Float>(0, 0, -1)
@@ -514,7 +550,7 @@ struct VisualMapper: UIViewRepresentable {
             }
 
             let depthToStart = abs(position.y - (pathPoints.first?.position.y ?? position.y))
-            pathPoints.append((position: position, distance: totalDistance, heading: heading, depth: depthToStart, drift: 0.0))
+            pathPoints.append((position: position, distance: totalDistance, heading: headingValue, depth: depthToStart, drift: 0.0))
 
             updateLabel()
             updateMaxDepthLabel()
@@ -871,6 +907,59 @@ struct VisualMapper: UIViewRepresentable {
             return String(String.UnicodeScalarView(scalars))
         }
 
+        // MARK: - Heading helpers and UI
+        
+        // Compute preferred heading value (True if valid, otherwise Magnetic) and provide accuracy
+        private func preferredHeading() -> (value: Double?, isTrue: Bool, accuracy: CLLocationDirection?) {
+            guard let h = currentHeading else {
+                return (nil, false, nil)
+            }
+            // True heading is valid if accuracy >= 0 and trueHeading >= 0
+            if h.headingAccuracy >= 0, h.trueHeading >= 0 {
+                return (h.trueHeading, true, h.headingAccuracy)
+            } else {
+                // Fallback to magnetic; accuracy still describes the heading error (if >= 0)
+                let acc = h.headingAccuracy >= 0 ? h.headingAccuracy : nil
+                return (h.magneticHeading, false, acc)
+            }
+        }
+        
+        // Update or create the heading label (tag 105) with value, accuracy and type (T/M)
+        private func updateHeadingLabel(with heading: CLHeading) {
+            guard let arView = arView,
+                  let label = arView.viewWithTag(105) as? UILabel else { return }
+            
+            let info = preferredHeading()
+            let suffix = info.isTrue ? "T" : "M"
+            
+            let text: String
+            let color: UIColor
+            
+            if let value = info.value {
+                let valueStr = String(format: "%.0f°", value)
+                if let acc = info.accuracy {
+                    let accStr = String(format: "±%.0f°", acc)
+                    text = "Heading: \(valueStr) (\(accStr)) \(suffix)"
+                    // Color code by accuracy
+                    if acc <= 5 {
+                        color = .green
+                    } else if acc <= 15 {
+                        color = .orange
+                    } else {
+                        color = .red
+                    }
+                } else {
+                    text = "Heading: \(valueStr) (unknown) \(suffix)"
+                    color = .red
+                }
+            } else {
+                text = "Heading: --"
+                color = .white
+            }
+            
+            label.text = text
+            label.textColor = color
+        }
 
         
         

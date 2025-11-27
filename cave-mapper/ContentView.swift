@@ -128,7 +128,7 @@ struct ContentView: View {
                     .padding(.bottom)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .navigationBarLeading) {
                         Button(action: {
                             showSettings = true
                         }) {

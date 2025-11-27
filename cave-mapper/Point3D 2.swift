@@ -54,6 +54,12 @@ struct PlyVisualizerView: View {
     @State private var isImporterPresented = false
     @State private var isExporting = false
     @State private var pendingShareURL: URL? = nil
+
+    // NEW: Toggle between 2D and 3D
+    @State private var mode3D: Bool = false
+
+    // Hard-coded opacity for tunnel mesh in 3D view (no UI)
+    @State private var tunnelOpacity: CGFloat = 0.4
     
     var totalDistance: Double {
         guard centerlineTopPoints.count > 1 else { return 0 }
@@ -69,80 +75,133 @@ struct PlyVisualizerView: View {
 
     var body: some View {
         VStack {
-            // Top projection (X-Z)
-            ZoomableView {
-                ProjectionView(
-                    points: wallTopPoints,
-                    centerlinePoints: centerlineTopPoints,
-                    labels: labelsTop,
-                    showVerticalScale: true,
-                    showHorizontalScale: true,
-                    axisUnitsSuffix: " m"
-                )
-            }
-            .frame(height: 200)
-            .padding()
-            Text("Top View (X-Z)")
-
-            // Side projection (X-Y)
-            ZoomableView {
-                ProjectionView(
-                    points: wallSidePoints,
-                    centerlinePoints: centerlineSidePoints, // (x’, y’)
-                    labels: labelsSide,
-                    showVerticalScale: true,
-                    showHorizontalScale: true,
-                    axisUnitsSuffix: " m"
-                )
-            }
-            .frame(height: 200)
-            .padding()
-            Text("Side View (X-Y)")
-
-            // Rotation control for Y-axis (affects both views since we rotate the 3D data)
-            VStack(spacing: 8) {
-                Text(String(format: "Rotate Y: %.0f°", rotationYDegrees))
-                Slider(
-                    value: $rotationYDegrees,
-                    in: -180...180,
-                    step: 1,
-                    onEditingChanged: { editing in
-                        // Only reproject when the user finishes interacting with the slider
-                        if !editing {
-                            reproject(using: rotationYDegrees)
-                        }
-                    }
-                )
-                .padding(.horizontal)
+            // Toggle 2D/3D mode
+            Toggle(isOn: $mode3D) {
+                Text("3D Mode")
             }
             .padding(.bottom, 8)
 
-            HStack(spacing: 20) {
-                CompassView2(mapRotation: .degrees(angleDegrees))
-                    .frame(width: 60, height: 60)
+            if mode3D {
+                // 3D view
+                PointCloud3DView(
+                    points: allPoints3D,
+                    centerline: centerline3D,
+                    tubeRadius: 0.5,
+                    tubeSides: 16,
+                    showAxes: true,
+                    showGrid: false,
+                    buildTunnelMesh: true,
+                    tunnelOpacity: $tunnelOpacity
+                )
+                .frame(height: 320)
+                .padding(.horizontal)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(String(format: "Total Distance: %.1f m", totalDistance))
-                    Text(String(format: "Max Depth: %.1f m", maxDepth))
-                }
-                .font(.footnote)
-                .padding(.vertical, 4)
-            }
+                // Keep some stats visible under 3D
+                HStack(spacing: 20) {
+                    CompassView2(mapRotation: .degrees(angleDegrees))
+                        .frame(width: 60, height: 60)
 
-            HStack(spacing: 16) {
-                Button("Load PLY") {
-                    isImporterPresented = true
-                }
-                Button {
-                    exportPDFAndShare()
-                } label: {
-                    if isExporting {
-                        ProgressView()
-                    } else {
-                        Text("Export PDF")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(format: "Total Distance: %.1f m", totalDistance))
+                        Text(String(format: "Max Depth: %.1f m", maxDepth))
                     }
+                    .font(.footnote)
+                    .padding(.vertical, 4)
                 }
-                .disabled(isExporting)
+
+                // Export still available in 3D mode
+                HStack(spacing: 16) {
+                    Button("Load PLY") {
+                        isImporterPresented = true
+                    }
+                    Button {
+                        exportPDFAndShare()
+                    } label: {
+                        if isExporting {
+                            ProgressView()
+                        } else {
+                            Text("Export PDF")
+                        }
+                    }
+                    .disabled(isExporting)
+                }
+            } else {
+                // 2D projections (existing UI)
+                // Top projection (X-Z)
+                ZoomableView {
+                    ProjectionView(
+                        points: wallTopPoints,
+                        centerlinePoints: centerlineTopPoints,
+                        labels: labelsTop,
+                        showVerticalScale: true,
+                        showHorizontalScale: true,
+                        axisUnitsSuffix: " m"
+                    )
+                }
+                .frame(height: 200)
+                .padding()
+                Text("Top View (X-Z)")
+
+                // Side projection (X-Y)
+                ZoomableView {
+                    ProjectionView(
+                        points: wallSidePoints,
+                        centerlinePoints: centerlineSidePoints, // (x’, y’)
+                        labels: labelsSide,
+                        showVerticalScale: true,
+                        showHorizontalScale: true,
+                        axisUnitsSuffix: " m"
+                    )
+                }
+                .frame(height: 200)
+                .padding()
+                Text("Side View (X-Y)")
+
+                // Rotation control for Y-axis (affects both views since we rotate the 3D data)
+                VStack(spacing: 8) {
+                    Text(String(format: "Rotate Y: %.0f°", rotationYDegrees))
+                    Slider(
+                        value: $rotationYDegrees,
+                        in: -180...180,
+                        step: 1,
+                        onEditingChanged: { editing in
+                            // Only reproject when the user finishes interacting with the slider
+                            if !editing {
+                                reproject(using: rotationYDegrees)
+                            }
+                        }
+                    )
+                    .padding(.horizontal)
+                }
+                .padding(.bottom, 8)
+
+                HStack(spacing: 20) {
+                    CompassView2(mapRotation: .degrees(angleDegrees))
+                        .frame(width: 60, height: 60)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(format: "Total Distance: %.1f m", totalDistance))
+                        Text(String(format: "Max Depth: %.1f m", maxDepth))
+                    }
+                    .font(.footnote)
+                    .padding(.vertical, 4)
+                }
+
+                HStack(spacing: 16) {
+                    Button("Load PLY") {
+                        isImporterPresented = true
+                    }
+                    Button {
+                        exportPDFAndShare()
+                    } label: {
+                        if isExporting {
+                            ProgressView()
+                        } else {
+                            Text("Export PDF")
+                        }
+                    }
+                    .disabled(isExporting)
+                }
             }
         }
         .padding()
@@ -692,7 +751,8 @@ struct ProjectionView: View {
         var axisPath = Path()
         axisPath.move(to: CGPoint(x: leftGutter - 1, y: 0))
         axisPath.addLine(to: CGPoint(x: leftGutter - 1, y: size.height - bottomGutter))
-        context.stroke(axisPath, with: .color(.gray.opacity(0.6)), lineWidth: 1)
+        // Use axisColor to maintain consistency
+        context.stroke(axisPath, with: .color(axisColor), lineWidth: 1)
 
         let start = ceil(minY / step) * step
         var yValue = start
@@ -702,12 +762,12 @@ struct ProjectionView: View {
             var grid = Path()
             grid.move(to: CGPoint(x: leftGutter - 1, y: yCanvas))
             grid.addLine(to: CGPoint(x: size.width, y: yCanvas))
-            context.stroke(grid, with: .color(.gray.opacity(0.25)), lineWidth: 0.5)
+            context.stroke(grid, with: .color(gridColor), lineWidth: 0.5)
 
             var tick = Path()
             tick.move(to: CGPoint(x: leftGutter - 8, y: yCanvas))
             tick.addLine(to: CGPoint(x: leftGutter - 1, y: yCanvas))
-            context.stroke(tick, with: .color(.gray.opacity(0.6)), lineWidth: 1)
+            context.stroke(tick, with: .color(axisColor), lineWidth: 1)
 
             let labelText = Text(String(format: "%.0f%@", yValue, units))
                 .font(labelFont)
@@ -736,7 +796,7 @@ struct ProjectionView: View {
         var axisPath = Path()
         axisPath.move(to: CGPoint(x: leftGutter - 1, y: size.height - bottomGutter + 1))
         axisPath.addLine(to: CGPoint(x: size.width, y: size.height - bottomGutter + 1))
-        context.stroke(axisPath, with: .color(.gray.opacity(0.6)), lineWidth: 1)
+        context.stroke(axisPath, with: .color(axisColor), lineWidth: 1)
 
         let start = ceil(minX / step) * step
         var xValue = start
@@ -746,7 +806,7 @@ struct ProjectionView: View {
             var tick = Path()
             tick.move(to: CGPoint(x: xCanvas, y: size.height - bottomGutter + 1))
             tick.addLine(to: CGPoint(x: xCanvas, y: size.height - bottomGutter + 6))
-            context.stroke(tick, with: .color(.gray.opacity(0.6)), lineWidth: 1)
+            context.stroke(tick, with: .color(axisColor), lineWidth: 1)
 
             let labelText = Text(String(format: "%.0f%@", xValue, units))
                 .font(labelFont)
