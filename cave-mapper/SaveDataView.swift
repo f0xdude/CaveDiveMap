@@ -14,6 +14,7 @@ struct SaveDataView: View {
     
     @State private var pointNumber: Int = DataManager.loadPointNumber()
     @ObservedObject var magnetometer: MagnetometerViewModel
+    @ObservedObject private var buttonSettings = ButtonCustomizationSettings.shared
     @State private var depth: Double = DataManager.loadLastSavedDepth() // Initialize with last saved depth
     @State private var distance: Double = DataManager.loadLastSavedDistance() // Initialize with last saved distance
     
@@ -28,9 +29,9 @@ struct SaveDataView: View {
     
     @Environment(\.presentationMode) var presentationMode
 
-    // Shared button sizing (match Save button)
-    private let bigButtonSize: CGFloat = 70
-    private let smallIconSize: CGFloat = 28
+    // Shared button sizing (match Save button) - removed as we'll use settings
+    // private let bigButtonSize: CGFloat = 70
+    // private let smallIconSize: CGFloat = 28
 
     // Auto-repeat timers for press-and-hold
     @State private var incrementTimer: Timer?
@@ -99,10 +100,10 @@ struct SaveDataView: View {
                     ZStack {
                         Circle()
                             .fill(Color.orange)
-                            .frame(width: bigButtonSize, height: bigButtonSize)
+                            .frame(width: buttonSettings.saveViewDecrementButton.size, height: buttonSettings.saveViewDecrementButton.size)
                         Image(systemName: "minus")
                             .foregroundColor(.white)
-                            .font(.system(size: smallIconSize, weight: .bold))
+                            .font(.system(size: buttonSettings.saveViewDecrementButton.size * 0.4, weight: .bold))
                             .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
@@ -133,22 +134,22 @@ struct SaveDataView: View {
                         }
                 )
                 .accessibilityLabel("Decrease \(selectedParameter.rawValue)")
-                .offset(x: -100, y: 80)
+                .offset(x: buttonSettings.saveViewDecrementButton.offsetX, y: buttonSettings.saveViewDecrementButton.offsetY)
 
                 // Save (center)
                 Button(action: { saveData() }) {
                     ZStack {
                         Circle()
                             .fill(Color.green)
-                            .frame(width: bigButtonSize, height: bigButtonSize)
+                            .frame(width: buttonSettings.saveViewSaveButton.size, height: buttonSettings.saveViewSaveButton.size)
                         Text("Save")
                             .foregroundColor(.white)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: buttonSettings.saveViewSaveButton.size * 0.26, weight: .bold, design: .rounded))
                             .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
                 .accessibilityLabel("Save point")
-                .offset(y: 120)
+                .offset(x: buttonSettings.saveViewSaveButton.offsetX, y: buttonSettings.saveViewSaveButton.offsetY)
 
                 // Plus button with tap vs hold handling
                 Button(action: {
@@ -157,10 +158,10 @@ struct SaveDataView: View {
                     ZStack {
                         Circle()
                             .fill(Color.orange)
-                            .frame(width: bigButtonSize, height: bigButtonSize)
+                            .frame(width: buttonSettings.saveViewIncrementButton.size, height: buttonSettings.saveViewIncrementButton.size)
                         Image(systemName: "plus")
                             .foregroundColor(.white)
-                            .font(.system(size: smallIconSize, weight: .bold))
+                            .font(.system(size: buttonSettings.saveViewIncrementButton.size * 0.4, weight: .bold))
                             .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
@@ -187,22 +188,22 @@ struct SaveDataView: View {
                         }
                 )
                 .accessibilityLabel("Increase \(selectedParameter.rawValue)")
-                .offset(x: 100, y: 80)
+                .offset(x: buttonSettings.saveViewIncrementButton.offsetX, y: buttonSettings.saveViewIncrementButton.offsetY)
 
                 // Cycle parameter (make same size as Save)
                 Button(action: { cycleParameter() }) {
                     ZStack {
                         Circle()
                             .fill(Color.blue)
-                            .frame(width: bigButtonSize, height: bigButtonSize)
+                            .frame(width: buttonSettings.saveViewCycleButton.size, height: buttonSettings.saveViewCycleButton.size)
                         Image(systemName: "arrow.trianglehead.2.clockwise")
                             .foregroundColor(.white)
-                            .font(.system(size: smallIconSize, weight: .bold))
+                            .font(.system(size: buttonSettings.saveViewCycleButton.size * 0.4, weight: .bold))
                             .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 1)
                     }
                 }
                 .accessibilityLabel("Cycle parameter")
-                .offset(x: 150, y: 150)
+                .offset(x: buttonSettings.saveViewCycleButton.offsetX, y: buttonSettings.saveViewCycleButton.offsetY)
             }
             .padding(.bottom, 8)
         }

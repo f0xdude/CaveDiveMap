@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		494750382EE1E99700F0177D /* ButtonCustomizationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */; };
+		494750392EE1E99700F0177D /* ButtonCustomizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750372EE1E99700F0177D /* ButtonCustomizationView.swift */; };
 		496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */; };
 		498FFF962ED51436003120C8 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF952ED51436003120C8 /* README.md */; };
 		498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF982ED5145F003120C8 /* map-view.jpg */; };
@@ -49,6 +51,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationSettings.swift; sourceTree = "<group>"; };
+		494750372EE1E99700F0177D /* ButtonCustomizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationView.swift; sourceTree = "<group>"; };
 		496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud3DView.swift; sourceTree = "<group>"; };
 		498FFF952ED51436003120C8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		498FFF972ED5145F003120C8 /* front.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = front.jpg; sourceTree = "<group>"; };
@@ -160,6 +164,8 @@
 				98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
+				494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */,
+				494750372EE1E99700F0177D /* ButtonCustomizationView.swift */,
 				9886EDD02D63E61A00EF570D /* CameraView.swift */,
 				498FFF9E2ED51477003120C8 /* tools */,
 				498FFF992ED5145F003120C8 /* Manual */,
@@ -336,6 +342,8 @@
 			files = (
 				98E5E9022D9C8B8200B5607B /* VisualMapper.swift in Sources */,
 				982347B32CF06028007C87F7 /* SettingsView.swift in Sources */,
+				494750382EE1E99700F0177D /* ButtonCustomizationSettings.swift in Sources */,
+				494750392EE1E99700F0177D /* ButtonCustomizationView.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
 				988743122DE767A300C54C44 /* Point3D 2.swift in Sources */,

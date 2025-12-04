@@ -188,6 +188,12 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                     }
                     
+                    NavigationLink(destination: ButtonCustomizationView()) {
+                        Text("Button Customization")
+                            .font(.headline)
+                            .foregroundColor(.blue)
+                    }
+                    
                     NavigationLink(destination: PlyVisualizerView()) {
                         Text("PointCloud to Map")
                             .font(.headline)

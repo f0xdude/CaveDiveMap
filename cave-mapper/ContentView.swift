@@ -3,6 +3,7 @@ import CoreLocation
 
 struct ContentView: View {
     @StateObject private var magnetometer = MagnetometerViewModel()
+    @ObservedObject private var buttonSettings = ButtonCustomizationSettings.shared
     
     @State private var showCalibrationAlert = false
     @State private var showResetSuccessAlert = false
@@ -70,12 +71,13 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.green)
-                                    .frame(width: 75, height: 75)
+                                    .frame(width: buttonSettings.mainSaveButton.size, height: buttonSettings.mainSaveButton.size)
                                 Image(systemName: "square.and.arrow.down.fill")
                                     .foregroundColor(.white)
-                                    .font(.title2)
+                                    .font(.system(size: buttonSettings.mainSaveButton.size * 0.35))
                             }
                         }
+                        .offset(x: buttonSettings.mainSaveButton.offsetX, y: buttonSettings.mainSaveButton.offsetY)
                         .padding(.bottom, 20)
 
                         NavigationLink {
@@ -84,26 +86,26 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.blue)
-                                    .frame(width: 75, height: 75)
+                                    .frame(width: buttonSettings.mainMapButton.size, height: buttonSettings.mainMapButton.size)
                                 Image(systemName: "map.fill")
                                     .foregroundColor(.white)
-                                    .font(.title2)
+                                    .font(.system(size: buttonSettings.mainMapButton.size * 0.35))
                             }
                         }
-                        .offset(x: 130, y: 10)
+                        .offset(x: buttonSettings.mainMapButton.offsetX, y: buttonSettings.mainMapButton.offsetY)
 
                         ZStack {
                             Circle()
                                 .fill(Color.red)
-                                .frame(width: 75, height: 75)
+                                .frame(width: buttonSettings.mainResetButton.size, height: buttonSettings.mainResetButton.size)
                             Text("Reset")
                                 .foregroundColor(.white)
-                                .bold()
+                                .font(.system(size: buttonSettings.mainResetButton.size * 0.2, weight: .bold))
                         }
                         .onLongPressGesture(minimumDuration: 3) {
                             resetMonitoringData()
                         }
-                        .offset(x: -70, y: -70)
+                        .offset(x: buttonSettings.mainResetButton.offsetX, y: buttonSettings.mainResetButton.offsetY)
                         .padding(.bottom, 20)
 
                         Button(action: {
@@ -112,13 +114,13 @@ struct ContentView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.orange)
-                                    .frame(width: 75, height: 75)
+                                    .frame(width: buttonSettings.mainCameraButton.size, height: buttonSettings.mainCameraButton.size)
                                 Image(systemName: "camera.fill")
                                     .foregroundColor(.white)
-                                    .font(.title2)
+                                    .font(.system(size: buttonSettings.mainCameraButton.size * 0.35))
                             }
                         }
-                        .offset(x: 70, y: -70)
+                        .offset(x: buttonSettings.mainCameraButton.offsetX, y: buttonSettings.mainCameraButton.offsetY)
                         .padding(.bottom, 20)
                         
                         .fullScreenCover(isPresented: $showCameraView) {
