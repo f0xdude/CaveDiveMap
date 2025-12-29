@@ -37,6 +37,7 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     @Published var calibrationNeeded: Bool = false
     @Published var signalQuality: Double = 0.0 // 0-1, planarity metric
     @Published var phaseAngle: Double = 0.0 // Current phase in radians
+    @Published var currentSignalAmplitude: Double = 0.0 // Current eigenvalue (signal strength in µT)
     
     // Calibration state
     @Published var isCalibrating: Bool = false
@@ -110,7 +111,7 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     private var motionThreshold: Double = 0.1 // Minimum phase velocity to be "moving"
     
     // MARK: - Calibration & Amplitude Thresholds
-    private var minSignalAmplitude: Double = 0.5 // Minimum eigenvalue (µT) to be considered real signal
+    @Published var minSignalAmplitude: Double = 0.5 // Minimum eigenvalue (µT) to be considered real signal
     private var calibrationSamples: [Double] = [] // Store eigenvalue amplitudes during calibration
     private var calibrationTimer: Timer?
     private let calibrationDuration: Double = 10.0 // seconds
@@ -119,13 +120,13 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         let defaults = UserDefaults.standard
         self.wheelCircumference = defaults.object(forKey: "wheelCircumference") as? Double ?? 11.78
         
-        // Load calibration threshold if available
+        super.init()
+        
+        // Load calibration threshold if available (must be after super.init for @Published properties)
         if let savedThreshold = defaults.object(forKey: "pcaMinSignalAmplitude") as? Double {
             self.minSignalAmplitude = savedThreshold
             print("✅ Loaded PCA amplitude threshold: \(minSignalAmplitude) µT")
         }
-        
-        super.init()
         
         locationManager.delegate = self
         locationManager.headingFilter = 1
@@ -337,6 +338,9 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         
         // Step 3: Compute PCA on window
         if let pca = computePCA(samples: correctedSamples) {
+            // Update current signal amplitude for UI display
+            currentSignalAmplitude = pca.eigenvalues[0]
+            
             // Collect amplitude samples during calibration
             if isCalibrating {
                 let amplitude = pca.eigenvalues[0] // Largest eigenvalue = signal strength
@@ -506,6 +510,8 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         var jobz: Int8 = Int8(UnicodeScalar("V").value)
         var uplo: Int8 = Int8(UnicodeScalar("U").value)
         
+        // Note: dsyev_ is deprecated in iOS 16.4+. For production, migrate to new LAPACK API
+        // by compiling with -DACCELERATE_NEW_LAPACK and using LAPACKE interface
         dsyev_(&jobz, &uplo, &n_int32, &matrix, &lda, &eigenvalues, &work, &lwork, &info)
         
         guard info == 0 else {

@@ -270,6 +270,66 @@ struct SettingsView: View {
     private var pcaCalibrationSection: some View {
         Section(header: Text("PCA Phase Tracking")) {
             VStack(alignment: .leading, spacing: 12) {
+                // Signal Strength Bar
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Signal Strength")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text(String(format: "%.2f µT", detectionManager.pcaDetector.currentSignalAmplitude))
+                            .font(.subheadline)
+                            .monospacedDigit()
+                            .foregroundColor(signalStrengthColor)
+                    }
+                    
+                    // Visual bar indicator
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Background track
+                            Rectangle()
+                                .fill(Color(.systemGray5))
+                                .frame(height: 20)
+                                .cornerRadius(10)
+                            
+                            // Threshold marker
+                            let thresholdPosition = min(1.0, detectionManager.pcaDetector.minSignalAmplitude / maxDisplayAmplitude) * geometry.size.width
+                            Rectangle()
+                                .fill(Color.orange.opacity(0.3))
+                                .frame(width: 2, height: 20)
+                                .offset(x: thresholdPosition)
+                            
+                            // Signal strength bar
+                            let signalWidth = min(1.0, detectionManager.pcaDetector.currentSignalAmplitude / maxDisplayAmplitude) * geometry.size.width
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [signalStrengthColor, signalStrengthColor.opacity(0.7)]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: max(0, signalWidth), height: 20)
+                                .cornerRadius(10)
+                                .animation(.easeOut(duration: 0.1), value: detectionManager.pcaDetector.currentSignalAmplitude)
+                        }
+                    }
+                    .frame(height: 20)
+                    
+                    HStack {
+                        Text("Threshold: \(String(format: "%.2f", detectionManager.pcaDetector.minSignalAmplitude)) µT")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("Max: \(String(format: "%.1f", maxDisplayAmplitude)) µT")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+                
+                Divider()
+                
                 HStack {
                     Text("Phase Angle")
                     Spacer()
@@ -324,6 +384,27 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
                     .padding(.top, 4)
             }
+        }
+    }
+    
+    // Helper computed properties for signal strength visualization
+    private var maxDisplayAmplitude: Double {
+        // Use 3x threshold or minimum 5.0 µT for display scale
+        max(5.0, detectionManager.pcaDetector.minSignalAmplitude * 3.0)
+    }
+    
+    private var signalStrengthColor: Color {
+        let amplitude = detectionManager.pcaDetector.currentSignalAmplitude
+        let threshold = detectionManager.pcaDetector.minSignalAmplitude
+        
+        if amplitude < threshold * 0.5 {
+            return .red
+        } else if amplitude < threshold {
+            return .orange
+        } else if amplitude < threshold * 2.0 {
+            return .green
+        } else {
+            return .blue // Very strong signal
         }
     }
     

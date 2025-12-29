@@ -252,7 +252,6 @@ class PCAMagneticDetector: NSObject, ObservableObject, CLLocationManagerDelegate
                       cxz, cyz, czz]
         
         var eigenvalues = [Double](repeating: 0, count: 3)
-        var eigenvectors = [Double](repeating: 0, count: 9)
         
         var n_int32: __CLPK_integer = 3
         var lda: __CLPK_integer = 3
@@ -263,12 +262,13 @@ class PCAMagneticDetector: NSObject, ObservableObject, CLLocationManagerDelegate
         var uplo: Int8 = Int8(UnicodeScalar("U").value) // Upper triangle
         
         // Call LAPACK's dsyev to compute eigenvalues and eigenvectors
+        // Note: This is the old CLAPACK interface. For iOS 16.4+, consider using new LAPACK
         dsyev_(&jobz, &uplo, &n_int32, &matrix, &lda, &eigenvalues, &work, &lwork, &info)
         
         if info == 0 {
             // Success! The eigenvalues are sorted in ascending order
             // The last eigenvalue is the largest (first principal component)
-            // The corresponding eigenvector is in the last 3 elements
+            // The corresponding eigenvector is in the last 3 elements (stored in matrix)
             
             // Extract the first principal component (eigenvector with largest eigenvalue)
             principalComponent = (
