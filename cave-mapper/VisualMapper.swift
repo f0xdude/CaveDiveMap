@@ -350,7 +350,7 @@ struct VisualMapper: UIViewRepresentable {
             for i in 0..<(pathPoints.count - 20) {
                 let prev = pathPoints[i]
                 let spatialDistance = simd_distance(prev.position, currentPosition)
-                let headingDiff = abs(prev.heading - heading)
+                _ = abs(prev.heading - heading)  // headingDiff not currently used
 
                 // ✅ Looser match thresholds
                 //if spatialDistance < 0.5 && headingDiff < 25 {

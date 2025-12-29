@@ -38,6 +38,10 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     @Published var signalQuality: Double = 0.0 // 0-1, planarity metric
     @Published var phaseAngle: Double = 0.0 // Current phase in radians
     
+    // Calibration state
+    @Published var isCalibrating: Bool = false
+    @Published var calibrationProgress: Double = 0.0
+    
     @Published var wheelCircumference: Double {
         didSet {
             UserDefaults.standard.set(wheelCircumference, forKey: "wheelCircumference")
@@ -82,6 +86,7 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     // MARK: - Phase Tracking
     private var totalPhase: Double = 0.0
     private var lastPhase: Double = 0.0
+    private var previousPhaseAngle: Double = 0.0 // For motion detection
     private var forwardPhaseAccum: Double = 0.0
     private var forwardSign: Double = 0.0 // +1 or -1, learned from first stable motion
     private var hasLearnedForwardSign = false
@@ -101,11 +106,24 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     
     // MARK: - Motion Detection
     private var lastMotionTime: Date?
+    private var startTime: Date?
     private var motionThreshold: Double = 0.1 // Minimum phase velocity to be "moving"
+    
+    // MARK: - Calibration & Amplitude Thresholds
+    private var minSignalAmplitude: Double = 0.5 // Minimum eigenvalue (µT) to be considered real signal
+    private var calibrationSamples: [Double] = [] // Store eigenvalue amplitudes during calibration
+    private var calibrationTimer: Timer?
+    private let calibrationDuration: Double = 10.0 // seconds
     
     override init() {
         let defaults = UserDefaults.standard
         self.wheelCircumference = defaults.object(forKey: "wheelCircumference") as? Double ?? 11.78
+        
+        // Load calibration threshold if available
+        if let savedThreshold = defaults.object(forKey: "pcaMinSignalAmplitude") as? Double {
+            self.minSignalAmplitude = savedThreshold
+            print("✅ Loaded PCA amplitude threshold: \(minSignalAmplitude) µT")
+        }
         
         super.init()
         
@@ -173,7 +191,88 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         motionManager.stopAccelerometerUpdates()
         locationManager.stopUpdatingHeading()
         isRunning = false
+        cancelCalibration() // Stop calibration if running
         print("✅ PCA phase tracking stopped")
+    }
+    
+    // MARK: - Calibration
+    func startCalibration() {
+        guard !isCalibrating else {
+            print("⚠️ Calibration already in progress")
+            return
+        }
+        
+        print("🔧 Starting PCA amplitude calibration (\(Int(calibrationDuration))s)")
+        isCalibrating = true
+        calibrationProgress = 0.0
+        calibrationSamples.removeAll()
+        
+        // Start timer to track progress
+        let startTime = Date()
+        calibrationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            let elapsed = Date().timeIntervalSince(startTime)
+            self.calibrationProgress = min(1.0, elapsed / self.calibrationDuration)
+            
+            if elapsed >= self.calibrationDuration {
+                self.finishCalibration()
+            }
+        }
+        
+        // Ensure we're monitoring to collect samples
+        if !isRunning {
+            startMonitoring()
+        }
+    }
+    
+    func cancelCalibration() {
+        guard isCalibrating else { return }
+        print("🛑 Calibration cancelled")
+        calibrationTimer?.invalidate()
+        calibrationTimer = nil
+        isCalibrating = false
+        calibrationProgress = 0.0
+        calibrationSamples.removeAll()
+    }
+    
+    private func finishCalibration() {
+        calibrationTimer?.invalidate()
+        calibrationTimer = nil
+        isCalibrating = false
+        calibrationProgress = 1.0
+        
+        print("🔧 Calibration complete. Collected \(calibrationSamples.count) samples")
+        
+        guard calibrationSamples.count >= 50 else {
+            print("⚠️ Not enough calibration samples (\(calibrationSamples.count)/50)")
+            return
+        }
+        
+        // Compute robust statistics on signal amplitudes
+        let sorted = calibrationSamples.sorted()
+        
+        // Use 90th percentile as threshold - signals above this are likely from magnet
+        let p90Index = Int(0.90 * Double(sorted.count))
+        let p90 = sorted[p90Index]
+        
+        // Use 10th percentile to understand noise floor
+        let p10Index = Int(0.10 * Double(sorted.count))
+        let p10 = sorted[p10Index]
+        
+        // Set threshold between p10 and p90, closer to p10 to catch weak signals
+        // But ensure it's significantly above noise
+        let noiseMargin = 3.0 // Require signal to be 3x noise
+        minSignalAmplitude = max(p10 * noiseMargin, (p10 + p90) / 4.0)
+        
+        print("📊 Calibration stats:")
+        print("   Noise floor (P10): \(String(format: "%.3f", p10)) µT")
+        print("   Strong signal (P90): \(String(format: "%.3f", p90)) µT")
+        print("   Threshold set to: \(String(format: "%.3f", minSignalAmplitude)) µT")
+        
+        // Save to UserDefaults
+        UserDefaults.standard.set(minSignalAmplitude, forKey: "pcaMinSignalAmplitude")
+        
+        calibrationSamples.removeAll()
     }
     
     private func resetState() {
@@ -185,13 +284,15 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         previousPCA = nil
         totalPhase = 0.0
         lastPhase = 0.0
+        previousPhaseAngle = 0.0
         forwardPhaseAccum = 0.0
         forwardSign = 0.0
         hasLearnedForwardSign = false
         gyroHistory.removeAll()
         accelHistory.removeAll()
         lastValidMotionTime = nil
-        lastMotionTime = nil
+        lastMotionTime = Date() // Start with motion assumed
+        startTime = Date()
     }
     
     // MARK: - Data Processing
@@ -227,63 +328,108 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         }
         
         // Need minimum samples before proceeding
-        guard correctedSamples.count >= minWindowSize else { return }
+        guard correctedSamples.count >= minWindowSize else {
+            if correctedSamples.count % 10 == 0 {
+                print("📊 PCA waiting for samples: \(correctedSamples.count)/\(minWindowSize)")
+            }
+            return
+        }
         
         // Step 3: Compute PCA on window
         if let pca = computePCA(samples: correctedSamples) {
+            // Collect amplitude samples during calibration
+            if isCalibrating {
+                let amplitude = pca.eigenvalues[0] // Largest eigenvalue = signal strength
+                calibrationSamples.append(amplitude)
+            }
+            
             // Step 4: Stabilize PCA basis
             let stabilized = stabilizePCA(pca)
             latestPCA = stabilized
+            previousPCA = stabilized
             
             // Step 5: Lock PCA if quality is good
             updateLockedPCA(stabilized)
+        } else {
+            // PCA computation failed - use previous or default basis
+            if correctedSamples.count % 25 == 0 {
+                print("⚠️ PCA computation returned nil with \(correctedSamples.count) samples")
+            }
             
-            // Use locked PCA if available, else latest
-            guard let projectionBasis = lockedPCA ?? latestPCA else { return }
+            // Try to use previous/locked basis if available
+            if latestPCA == nil && lockedPCA == nil {
+                // Create a default basis (rotation in XY plane)
+                latestPCA = PCABasis(
+                    pc1: (x: 1.0, y: 0.0, z: 0.0),
+                    pc2: (x: 0.0, y: 1.0, z: 0.0),
+                    normal: (x: 0.0, y: 0.0, z: 1.0),
+                    eigenvalues: [1.0, 1.0, 0.0]
+                )
+                print("📌 Using default PCA basis (XY plane)")
+            }
+        }
+        
+        // Use locked PCA if available, else latest
+        guard let projectionBasis = lockedPCA ?? latestPCA else {
+            print("⚠️ No projection basis available")
+            return
+        }
+        
+        // Step 6: Project current sample into 2D rotation plane
+        let projected = projectTo2D(corrected, basis: projectionBasis)
+        
+        // Step 7: Compute phase angle θ = atan2(v, u)
+        let phase = atan2(projected.v, projected.u)
+        phaseAngle = phase
+        
+        // Step 8: Unwrap and track phase
+        let phaseDelta = unwrapPhaseDelta(from: lastPhase, to: phase)
+        totalPhase += phaseDelta
+        lastPhase = phase
+        
+        // Always update signal quality for UI display
+        signalQuality = projectionBasis.planarity
+        
+        // Update motion tracking
+        let angleDelta = abs(phase - previousPhaseAngle)
+        if angleDelta > motionThreshold {
+            lastMotionTime = Date()
+        }
+        previousPhaseAngle = phase
+        
+        // Step 9: Validity gates
+        let isValid = checkValidityGates(projectionBasis)
+        
+        if isValid {
+            lastValidMotionTime = Date()
             
-            // Step 6: Project current sample into 2D rotation plane
-            let projected = projectTo2D(corrected, basis: projectionBasis)
+            // Learn forward sign from first stable motion
+            if !hasLearnedForwardSign && abs(phaseDelta) > 0.01 {
+                forwardSign = phaseDelta > 0 ? 1.0 : -1.0
+                hasLearnedForwardSign = true
+                print("🎯 Learned forward sign: \(forwardSign)")
+            }
             
-            // Step 7: Compute phase angle θ = atan2(v, u)
-            let phase = atan2(projected.v, projected.u)
-            phaseAngle = phase
-            
-            // Step 8: Unwrap and track phase
-            let phaseDelta = unwrapPhaseDelta(from: lastPhase, to: phase)
-            totalPhase += phaseDelta
-            lastPhase = phase
-            
-            // Step 9: Validity gates
-            let isValid = checkValidityGates(projectionBasis)
-            
-            if isValid {
-                lastValidMotionTime = Date()
-                
-                // Learn forward sign from first stable motion
-                if !hasLearnedForwardSign && abs(phaseDelta) > 0.01 {
-                    forwardSign = phaseDelta > 0 ? 1.0 : -1.0
-                    hasLearnedForwardSign = true
-                    print("🎯 Learned forward sign: \(forwardSign)")
-                }
-                
-                // Step 10: Accumulate forward phase and count rotations
-                if hasLearnedForwardSign {
-                    let signedDelta = phaseDelta * forwardSign
-                    if signedDelta > 0 {
-                        forwardPhaseAccum += signedDelta
-                        
-                        // Count complete 2π rotations
-                        let pendingRotations = Int(floor(forwardPhaseAccum / (2.0 * .pi)))
-                        if pendingRotations > 0 {
-                            revolutions += pendingRotations
-                            forwardPhaseAccum -= Double(pendingRotations) * 2.0 * .pi
-                            print("🎯 Rotation detected! Total: \(revolutions)")
-                        }
+            // Step 10: Accumulate forward phase and count rotations
+            if hasLearnedForwardSign {
+                let signedDelta = phaseDelta * forwardSign
+                if signedDelta > 0 {
+                    forwardPhaseAccum += signedDelta
+                    
+                    // Debug: Show phase accumulation occasionally
+                    if Int.random(in: 0..<50) == 0 {
+                        print("📈 Forward phase: \(String(format: "%.2f", forwardPhaseAccum)) / \(String(format: "%.2f", 2.0 * .pi))")
+                    }
+                    
+                    // Count complete 2π rotations
+                    let pendingRotations = Int(floor(forwardPhaseAccum / (2.0 * .pi)))
+                    if pendingRotations > 0 {
+                        revolutions += pendingRotations
+                        forwardPhaseAccum -= Double(pendingRotations) * 2.0 * .pi
+                        print("🎯 Rotation detected! Total: \(revolutions)")
                     }
                 }
             }
-            
-            previousPCA = stabilized
         }
     }
     
@@ -362,7 +508,10 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         
         dsyev_(&jobz, &uplo, &n_int32, &matrix, &lda, &eigenvalues, &work, &lwork, &info)
         
-        guard info == 0 else { return nil }
+        guard info == 0 else {
+            print("❌ PCA eigenvalue computation failed with info: \(info)")
+            return nil
+        }
         
         // Extract eigenvectors (columns of matrix, sorted by eigenvalue)
         // LAPACK returns eigenvalues in ascending order, we want descending
@@ -372,12 +521,19 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         // Normal = pc1 × pc2 (cross product)
         let normal = crossProduct(pc1, pc2)
         
-        return PCABasis(
+        let basis = PCABasis(
             pc1: normalize(pc1),
             pc2: normalize(pc2),
             normal: normalize(normal),
             eigenvalues: [eigenvalues[2], eigenvalues[1], eigenvalues[0]] // Descending order
         )
+        
+        // Debug: Print eigenvalues and planarity occasionally
+        if Int.random(in: 0..<50) == 0 {
+            print("📊 PCA: λ=[\(eigenvalues[2]), \(eigenvalues[1]), \(eigenvalues[0])], planarity=\(basis.planarity)")
+        }
+        
+        return basis
     }
     
     // MARK: - PCA Stabilization
@@ -468,30 +624,42 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     
     // MARK: - Validity Gates
     private func checkValidityGates(_ basis: PCABasis) -> Bool {
+        var failureReasons: [String] = []
+        
+        // Gate 0: Signal amplitude check (most important - filters out noise)
+        let signalAmplitude = basis.eigenvalues[0] // Largest eigenvalue
+        if signalAmplitude < minSignalAmplitude {
+            failureReasons.append("weak signal: \(String(format: "%.3f", signalAmplitude)) < \(String(format: "%.3f", minSignalAmplitude)) µT")
+        }
+        
         // Gate 1: Planarity check (with grace period)
         if basis.planarity < minPlanarity {
             if let lastValid = lastValidMotionTime {
                 let elapsed = Date().timeIntervalSince(lastValid) * 1000 // ms
                 if elapsed > planarGraceMs {
-                    return false
+                    failureReasons.append("planarity=\(String(format: "%.1f%%", basis.planarity * 100))")
                 }
             } else {
-                return false
+                failureReasons.append("planarity=\(String(format: "%.1f%%", basis.planarity * 100)) (no grace)")
             }
         }
         
         // Gate 2: Inertial rejection (check if phone is moving)
         if isPhoneMovingTooMuch() {
-            return false
+            failureReasons.append("phone moving")
         }
         
         // Gate 3: Motion detection (must be actually rotating)
         if !isInMotion() {
-            return false
+            failureReasons.append("no motion")
         }
         
-        signalQuality = basis.planarity
-        return true
+        // Log failures occasionally
+        if !failureReasons.isEmpty && Int.random(in: 0..<20) == 0 {
+            print("⚠️ Validity gates failed: \(failureReasons.joined(separator: ", "))")
+        }
+        
+        return failureReasons.isEmpty
     }
     
     private func isPhoneMovingTooMuch() -> Bool {
@@ -528,18 +696,14 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         // Check if phase is changing (wheel is rotating)
         if let lastMotion = lastMotionTime {
             let elapsed = Date().timeIntervalSince(lastMotion)
-            if elapsed > 0.5 { // No motion for 0.5s
+            if elapsed > 1.0 { // No motion for 1 second
                 return false
             }
-        }
-        
-        // If we see phase changes above threshold, we're in motion
-        if abs(phaseAngle - lastPhase) > motionThreshold {
-            lastMotionTime = Date()
             return true
         }
         
-        return lastMotionTime != nil
+        // No motion detected yet
+        return false
     }
     
     // MARK: - Vector Math Utilities

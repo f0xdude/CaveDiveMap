@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreMotion
 import CoreLocation
+import QuartzCore
 
 enum MagneticAxis: String, CaseIterable, Identifiable, Codable {
     case x, y, z, magnitude
@@ -38,8 +39,11 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
 
     @Published var selectedAxis: MagneticAxis {
         didSet {
-            if let data = try? JSONEncoder().encode(selectedAxis) {
-                UserDefaults.standard.set(data, forKey: selectedAxisKey)
+            // Debounce UserDefaults writes to avoid blocking main thread
+            DispatchQueue.global(qos: .utility).async {
+                if let data = try? JSONEncoder().encode(self.selectedAxis) {
+                    UserDefaults.standard.set(data, forKey: self.selectedAxisKey)
+                }
             }
         }
     }
@@ -63,6 +67,10 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     // Guided calibration buffers/timers
     private var calibrationSamples: [Double] = []
     private var calibrationTimer: Timer?
+    
+    // Throttle UI updates to reduce main thread congestion
+    private var lastUIUpdateTime: TimeInterval = 0
+    private let uiUpdateInterval: TimeInterval = 0.1 // Update UI at most 10Hz instead of 50Hz
 
     override init() {
         let defaults = UserDefaults.standard
@@ -90,42 +98,69 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     }
 
     func startMonitoring() {
-        guard !isRunning else { return }
+        print("🧲 MagnetometerViewModel.startMonitoring() called, isRunning=\(isRunning)")
+        
+        // Stop first if already running to ensure clean state
+        if isRunning || motionManager.isMagnetometerActive {
+            print("⚠️ Magnetometer already active, stopping first")
+            stopMonitoring()
+        }
+        
         isRunning = true
 
-        guard motionManager.isMagnetometerAvailable else { return }
+        guard motionManager.isMagnetometerAvailable else { 
+            print("❌ Magnetometer not available")
+            return 
+        }
+        
         motionManager.magnetometerUpdateInterval = 0.02
         motionManager.startMagnetometerUpdates(to: .main) { [weak self] (data, error) in
             guard let self = self, let data = data, error == nil else { return }
             self.isRunning = true
-            self.currentField = data.magneticField
-            self.currentMagnitude = self.calculateMagnitude(data.magneticField)
-
-            // Always add to history for monitoring
-            self.magneticFieldHistory.append(self.currentMagnitude)
-            if self.magneticFieldHistory.count > 50 {
-                self.magneticFieldHistory.removeFirst()
+            
+            // Calculate magnitude immediately (needed for peak detection)
+            let magnitude = self.calculateMagnitude(data.magneticField)
+            
+            // Throttle UI updates to reduce main thread congestion
+            // Only update @Published properties at most 10Hz instead of 50Hz
+            let now = CACurrentMediaTime()
+            let shouldUpdateUI = (now - self.lastUIUpdateTime) >= self.uiUpdateInterval
+            
+            if shouldUpdateUI {
+                self.currentField = data.magneticField
+                self.currentMagnitude = magnitude
+                self.lastUIUpdateTime = now
+                
+                // Update history for monitoring (but less frequently)
+                self.magneticFieldHistory.append(magnitude)
+                if self.magneticFieldHistory.count > 50 {
+                    self.magneticFieldHistory.removeFirst()
+                }
             }
             
             // During guided calibration, collect samples and skip peak detection
             if self.isCalibrating {
-                self.calibrationSamples.append(self.currentMagnitude)
+                self.calibrationSamples.append(magnitude)
             } else {
-                // Normal operation: peak detection only
-                self.detectPeak(self.currentMagnitude)
+                // Normal operation: peak detection runs at full rate (50Hz) for accuracy
+                self.detectPeak(magnitude)
             }
         }
 
         if CLLocationManager.headingAvailable() {
             locationManager.startUpdatingHeading()
         }
+        
+        print("✅ Magnetic monitoring started")
     }
 
     func stopMonitoring() {
+        print("🛑 MagnetometerViewModel.stopMonitoring() called")
         motionManager.stopMagnetometerUpdates()
         locationManager.stopUpdatingHeading()
         isRunning = false
         stopCalibrationTimer()
+        print("✅ Magnetic monitoring stopped")
     }
 
     private func calculateMagnitude(_ field: CMMagneticField) -> Double {

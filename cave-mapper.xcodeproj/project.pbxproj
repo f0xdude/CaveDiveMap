@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4912B3EF2F002BDC00D4FB28 /* PCAMagneticDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912B3EE2F002BDC00D4FB28 /* PCAMagneticDetector.swift */; };
+		4912B3F12F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 4912B3F02F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md */; };
+		4912B3F32F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4912B3F22F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift */; };
+		4912B3F52F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 4912B3F42F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md */; };
 		494750382EE1E99700F0177D /* ButtonCustomizationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */; };
 		494750392EE1E99700F0177D /* ButtonCustomizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750372EE1E99700F0177D /* ButtonCustomizationView.swift */; };
 		496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */; };
@@ -15,6 +19,11 @@
 		498FFF9B2ED5145F003120C8 /* front.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF972ED5145F003120C8 /* front.jpg */; };
 		498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9D2ED51477003120C8 /* PointCloud2Map.py */; };
 		498FFFA02ED51477003120C8 /* point.ply in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9C2ED51477003120C8 /* point.ply */; };
+		49F6FB562EFDF6CE00793428 /* OpticalWheelDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */; };
+		49F6FB572EFDF6CE00793428 /* CameraPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */; };
+		49F6FB582EFDF6CE00793428 /* OpticalDetectionPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */; };
+		49F6FB5A2EFDF7A700793428 /* WheelDetectionMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB592EFDF7A700793428 /* WheelDetectionMethod.swift */; };
+		49F6FB5C2EFDF7B800793428 /* WheelDetectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB5B2EFDF7B800793428 /* WheelDetectionManager.swift */; };
 		982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */; };
 		982347B32CF06028007C87F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982347B22CF06028007C87F7 /* SettingsView.swift */; };
 		9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9852A60B2CEBBBDF000C2A15 /* cave_mapperApp.swift */; };
@@ -51,6 +60,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4912B3EE2F002BDC00D4FB28 /* PCAMagneticDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCAMagneticDetector.swift; sourceTree = "<group>"; };
+		4912B3F02F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PCA_IMPLEMENTATION_GUIDE.md; sourceTree = "<group>"; };
+		4912B3F22F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCAPhaseTrackingDetector.swift; sourceTree = "<group>"; };
+		4912B3F42F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PCA_PHASE_TRACKING_IMPLEMENTATION.md; sourceTree = "<group>"; };
 		494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationSettings.swift; sourceTree = "<group>"; };
 		494750372EE1E99700F0177D /* ButtonCustomizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationView.swift; sourceTree = "<group>"; };
 		496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud3DView.swift; sourceTree = "<group>"; };
@@ -59,6 +72,11 @@
 		498FFF982ED5145F003120C8 /* map-view.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "map-view.jpg"; sourceTree = "<group>"; };
 		498FFF9C2ED51477003120C8 /* point.ply */ = {isa = PBXFileReference; lastKnownFileType = text; path = point.ply; sourceTree = "<group>"; };
 		498FFF9D2ED51477003120C8 /* PointCloud2Map.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = PointCloud2Map.py; sourceTree = "<group>"; };
+		49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPermissionHelper.swift; sourceTree = "<group>"; };
+		49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalDetectionPreviewView.swift; sourceTree = "<group>"; };
+		49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalWheelDetector.swift; sourceTree = "<group>"; };
+		49F6FB592EFDF7A700793428 /* WheelDetectionMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelDetectionMethod.swift; sourceTree = "<group>"; };
+		49F6FB5B2EFDF7B800793428 /* WheelDetectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelDetectionManager.swift; sourceTree = "<group>"; };
 		982268C12DA4873D00E9A5E3 /* cave_arrow.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = cave_arrow.usdz; sourceTree = "<group>"; };
 		982347B22CF06028007C87F7 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9852A6082CEBBBDF000C2A15 /* cave-mapper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "cave-mapper.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -162,6 +180,9 @@
 				988743112DE767A300C54C44 /* Point3D 2.swift */,
 				9852A60D2CEBBBDF000C2A15 /* ContentView.swift */,
 				98E5E8FF2D9C8B3900B5607B /* MagnetometerViewModel 2.swift */,
+				49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */,
+				49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */,
+				49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */,
 				989B57682CEE719100E46076 /* DataManager.swift */,
 				982347B22CF06028007C87F7 /* SettingsView.swift */,
 				494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */,
@@ -175,6 +196,12 @@
 				982268BC2DA4820C00E9A5E3 /* 3d assets */,
 				9852A6112CEBBBE0000C2A15 /* Preview Content */,
 				496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */,
+				49F6FB592EFDF7A700793428 /* WheelDetectionMethod.swift */,
+				49F6FB5B2EFDF7B800793428 /* WheelDetectionManager.swift */,
+				4912B3EE2F002BDC00D4FB28 /* PCAMagneticDetector.swift */,
+				4912B3F02F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md */,
+				4912B3F22F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift */,
+				4912B3F42F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md */,
 			);
 			path = "cave-mapper";
 			sourceTree = "<group>";
@@ -308,9 +335,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4912B3F12F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md in Resources */,
 				9852A6132CEBBBE0000C2A15 /* Preview Assets.xcassets in Resources */,
 				982268C22DA4873D00E9A5E3 /* cave_arrow.usdz in Resources */,
 				498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */,
+				4912B3F52F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md in Resources */,
 				498FFFA02ED51477003120C8 /* point.ply in Resources */,
 				498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */,
 				498FFF9B2ED5145F003120C8 /* front.jpg in Resources */,
@@ -345,14 +374,21 @@
 				494750382EE1E99700F0177D /* ButtonCustomizationSettings.swift in Sources */,
 				494750392EE1E99700F0177D /* ButtonCustomizationView.swift in Sources */,
 				989B57692CEE719100E46076 /* DataManager.swift in Sources */,
+				49F6FB5C2EFDF7B800793428 /* WheelDetectionManager.swift in Sources */,
+				4912B3EF2F002BDC00D4FB28 /* PCAMagneticDetector.swift in Sources */,
 				9852A60E2CEBBBDF000C2A15 /* ContentView.swift in Sources */,
 				988743122DE767A300C54C44 /* Point3D 2.swift in Sources */,
+				49F6FB562EFDF6CE00793428 /* OpticalWheelDetector.swift in Sources */,
+				49F6FB572EFDF6CE00793428 /* CameraPermissionHelper.swift in Sources */,
+				4912B3F32F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift in Sources */,
+				49F6FB582EFDF6CE00793428 /* OpticalDetectionPreviewView.swift in Sources */,
 				9852A60C2CEBBBDF000C2A15 /* cave_mapperApp.swift in Sources */,
 				989B57672CEE504500E46076 /* SaveDataView.swift in Sources */,
 				989B57642CED22B700E46076 /* NorthOrientedMapView.swift in Sources */,
 				496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */,
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
+				49F6FB5A2EFDF7A700793428 /* WheelDetectionMethod.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -523,7 +559,7 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Needed to connect to BLE sonar device";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "Needed to communicate with BLE sonar device";
-				INFOPLIST_KEY_NSCameraUsageDescription = "The app needs camera access so the user can take photos on reference points along the survey. Each photo is saved in the gallery with embedded survey data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Used for measuring rotations on a magnet wheel for distance with the magnetometer sernsor";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to microphone to use audio based odometer. ( detecting the wheel's rotation using a ratchet based clicker )";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need to be able to save the photos from the survey to the gallery.";
@@ -568,7 +604,7 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Needed to connect to BLE sonar device";
 				INFOPLIST_KEY_NSBluetoothPeripheralUsageDescription = "Needed to communicate with BLE sonar device";
-				INFOPLIST_KEY_NSCameraUsageDescription = "The app needs camera access so the user can take photos on reference points along the survey. Each photo is saved in the gallery with embedded survey data.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Used for measuring rotations on a magnet wheel for distance with the magnetometer sernsor";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to microphone to use audio based odometer. ( detecting the wheel's rotation using a ratchet based clicker )";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need to be able to save the photos from the survey to the gallery.";

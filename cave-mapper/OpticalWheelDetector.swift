@@ -61,9 +61,9 @@ class OpticalWheelDetector: NSObject, ObservableObject {
             self.captureSession.beginConfiguration()
             self.captureSession.sessionPreset = .low  // Low quality is fine for brightness detection
             
-            // Use front camera
-            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
-                print("❌ Front camera not available")
+            // Use rear camera
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+                print("❌ Rear camera not available")
                 self.captureSession.commitConfiguration()
                 return
             }
@@ -118,31 +118,41 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     
     // MARK: - Public Methods
     func startDetection() {
-        guard !isRunning else { return }
+        print("🚀 OpticalWheelDetector.startDetection() called, isRunning=\(isRunning)")
         
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            
+            // Stop first if already running to ensure clean state
+            if self.captureSession.isRunning {
+                print("⚠️ Session already running, stopping first")
+                self.captureSession.stopRunning()
+            }
             
             self.captureSession.startRunning()
             
             DispatchQueue.main.async {
                 self.isRunning = true
                 self.enableFlashlight(true)
+                print("✅ Optical detection started, flashlight enabled")
             }
         }
     }
     
     func stopDetection() {
-        guard isRunning else { return }
+        print("🛑 OpticalWheelDetector.stopDetection() called")
         
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             
-            self.captureSession.stopRunning()
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+            }
             
             DispatchQueue.main.async {
                 self.isRunning = false
                 self.enableFlashlight(false)
+                print("✅ Optical detection stopped, flashlight disabled")
             }
         }
     }
@@ -243,24 +253,33 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     
     // MARK: - Flashlight Control
     private func enableFlashlight(_ enable: Bool) {
-        guard let device = captureDevice, device.hasTorch else {
-            print("⚠️ Flashlight not available")
-            return
-        }
-        
-        do {
-            try device.lockForConfiguration()
-            
-            if enable {
-                try device.setTorchModeOn(level: 0.5)  // 50% brightness to avoid overheating
-            } else {
-                device.torchMode = .off
+        sessionQueue.async { [weak self] in
+            guard let self = self,
+                  let device = self.captureDevice,
+                  device.hasTorch else {
+                print("⚠️ Flashlight not available")
+                return
             }
             
-            device.unlockForConfiguration()
-            flashlightEnabled = enable
-        } catch {
-            print("❌ Could not toggle flashlight: \(error)")
+            do {
+                try device.lockForConfiguration()
+                
+                if enable {
+                    try device.setTorchModeOn(level: 0.5)  // 50% brightness to avoid overheating
+                    print("🔦 Flashlight turned ON")
+                } else {
+                    device.torchMode = .off
+                    print("🔦 Flashlight turned OFF")
+                }
+                
+                device.unlockForConfiguration()
+                
+                DispatchQueue.main.async {
+                    self.flashlightEnabled = enable
+                }
+            } catch {
+                print("❌ Could not toggle flashlight: \(error)")
+            }
         }
     }
     

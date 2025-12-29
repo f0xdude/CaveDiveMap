@@ -3,7 +3,20 @@ import CoreLocation
 
 struct ContentView: View {
     @StateObject private var magnetometer = MagnetometerViewModel()
+    @StateObject private var pcaMagnetometer = PCAPhaseTrackingDetector()
+    @StateObject private var opticalDetector = OpticalWheelDetector()
+    @StateObject private var detectionManager: WheelDetectionManager
     @ObservedObject private var buttonSettings = ButtonCustomizationSettings.shared
+    
+    init() {
+        let magnetic = MagnetometerViewModel()
+        let pca = PCAPhaseTrackingDetector()
+        let optical = OpticalWheelDetector()
+        _magnetometer = StateObject(wrappedValue: magnetic)
+        _pcaMagnetometer = StateObject(wrappedValue: pca)
+        _opticalDetector = StateObject(wrappedValue: optical)
+        _detectionManager = StateObject(wrappedValue: WheelDetectionManager(magneticDetector: magnetic, pcaDetector: pca, opticalDetector: optical))
+    }
     
     @State private var showCalibrationAlert = false
     @State private var showResetSuccessAlert = false
@@ -43,7 +56,7 @@ struct ContentView: View {
                     VStack(alignment: .leading) {
                         Text("Distance")
                             .font(.largeTitle)
-                        Text("\(magnetometer.dynamicDistanceInMeters, specifier: "%.2f") m")
+                        Text("\(detectionManager.distanceInMeters, specifier: "%.2f") m")
                             .font(.largeTitle)
                             .monospacedDigit()
                     }
@@ -140,19 +153,21 @@ struct ContentView: View {
                     }
                 }
                 .sheet(isPresented: $showSettings, onDismiss: {
-                    // Restart sensor updates after returning from settings
-                    magnetometer.stopMonitoring()
-                    magnetometer.startMonitoring()
+                    // Detection should already be running from SettingsView switches
+                    // Just ensure it's started in case user didn't switch methods
+                    if !detectionManager.isRunning {
+                        detectionManager.startDetection()
+                    }
                 }) {
-                    SettingsView(viewModel: magnetometer)
+                    SettingsView(viewModel: magnetometer, detectionManager: detectionManager)
                 }
                 .onAppear {
                     pointNumber = DataManager.loadPointNumber()
-                    magnetometer.startMonitoring()
+                    detectionManager.startDetection()
                     UIApplication.shared.isIdleTimerDisabled = true
                 }
                 .onDisappear {
-                    magnetometer.stopMonitoring()
+                    detectionManager.stopDetection()
                    // UIApplication.shared.isIdleTimerDisabled = false
                 }
                 .alert(isPresented: $showCalibrationAlert) {
@@ -174,12 +189,12 @@ struct ContentView: View {
                         }
                     }
                 }
-                .onChange(of: magnetometer.revolutionCount) { _, _ in
+                .onChange(of: detectionManager.rotationCount) { _, _ in
                     _ = DataManager.loadLastSavedDepth()
 
                     let savedData = SavedData(
                         recordNumber: pointNumber,
-                        distance: magnetometer.roundedDistanceInMeters,
+                        distance: detectionManager.roundedDistanceInMeters,
                         heading: magnetometer.roundedMagneticHeading ?? 0,
                         depth: 0.00,
                         left: 0.0,
@@ -230,7 +245,7 @@ struct ContentView: View {
             exportAllDataAsCSV()
         
         pointNumber = 0
-        magnetometer.revolutions = 0
+        detectionManager.resetRotationCount()
         magnetometer.magneticFieldHistory = []       
         DataManager.resetAllData()
         showResetSuccessAlert = true
