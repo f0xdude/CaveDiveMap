@@ -61,27 +61,56 @@ class OpticalWheelDetector: NSObject, ObservableObject {
             self.captureSession.beginConfiguration()
             self.captureSession.sessionPreset = .low  // Low quality is fine for brightness detection
             
-            // Use rear camera
-            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-                print("❌ Rear camera not available")
+            // Use macro camera for close-up detection of encoder wheel
+            // First try to get ultra-wide camera with macro capability (iPhone 13 Pro+)
+            var device: AVCaptureDevice?
+            
+            if let macroDevice = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) {
+                device = macroDevice
+                print("✅ Using ultra-wide camera with macro capability")
+            } else if let wideDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+                device = wideDevice
+                print("⚠️ Macro camera not available, falling back to wide-angle camera")
+            }
+            
+            guard let device = device else {
+                print("❌ No suitable rear camera available")
                 self.captureSession.commitConfiguration()
                 return
             }
             
             self.captureDevice = device
             
-            // Configure device for low latency
+            // Configure device for close-up macro detection
             do {
                 try device.lockForConfiguration()
                 
-                // Set focus mode to fixed for consistent measurements
-                if device.isFocusModeSupported(.locked) {
-                    device.focusMode = .locked
+                // Enable macro mode if available (iOS 15+)
+                if #available(iOS 15.4, *) {
+                    if device.isAutoFocusRangeRestrictionSupported {
+                        device.autoFocusRangeRestriction = .near
+                        print("✅ Auto focus range set to near (macro)")
+                    }
                 }
                 
-                // Disable auto exposure for consistent measurements
-                if device.isExposureModeSupported(.locked) {
-                    device.exposureMode = .locked
+                // Use continuous autofocus for macro to maintain focus on close objects
+                if device.isFocusModeSupported(.continuousAutoFocus) {
+                    device.focusMode = .continuousAutoFocus
+                    print("✅ Continuous autofocus enabled for macro")
+                } else if device.isFocusModeSupported(.autoFocus) {
+                    device.focusMode = .autoFocus
+                }
+                
+                // Lock exposure to prevent dynamic changes from interfering with brightness detection
+                // First set to auto to let it find a good exposure level
+                if device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposureMode = .continuousAutoExposure
+                }
+                
+                // Enable low light boost if available for better detection in dark environments
+                if device.isLowLightBoostSupported {
+                    device.automaticallyEnablesLowLightBoostWhenAvailable = true
+                    print("✅ Low light boost enabled")
                 }
                 
                 device.unlockForConfiguration()
@@ -116,6 +145,28 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Exposure Locking
+    private func lockExposure() {
+        guard let device = captureDevice else { return }
+        
+        do {
+            try device.lockForConfiguration()
+            
+            // Lock exposure at current settings to prevent dynamic changes
+            if device.isExposureModeSupported(.locked) {
+                device.exposureMode = .locked
+                print("🔒 Exposure locked for consistent brightness detection")
+            } else if device.isExposureModeSupported(.autoExpose) {
+                device.exposureMode = .autoExpose
+                print("⚠️ Locked exposure not supported, using autoExpose")
+            }
+            
+            device.unlockForConfiguration()
+        } catch {
+            print("⚠️ Could not lock exposure: \(error)")
+        }
+    }
+    
     // MARK: - Public Methods
     func startDetection() {
         print("🚀 OpticalWheelDetector.startDetection() called, isRunning=\(isRunning)")
@@ -135,6 +186,11 @@ class OpticalWheelDetector: NSObject, ObservableObject {
                 self.isRunning = true
                 self.enableFlashlight(true)
                 print("✅ Optical detection started, flashlight enabled")
+            }
+            
+            // Lock exposure after camera has had time to adjust (1 second delay)
+            self.sessionQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.lockExposure()
             }
         }
     }
