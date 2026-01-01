@@ -26,23 +26,30 @@ The app supports two methods for detecting wheel rotations:
    - Uses the iPhone's macro camera and flashlight
    - Detects brightness changes from wheel openings
    - Provides redundancy in challenging magnetic environments
+   - Requires 3d printed visual encoder wheel ( currently in development for DiveVolk case )
+   
+3. **Visual Innertial Odometry** ( Experimental )
+   - Uses Apple's ARkit to createa  3d point cloud and centerline using camera and IMU data.
+   - Tested in dry caves with good accuracy. Needs good visibility underwater.
+   - Requires light source to be fixed to dive case to provide consistent lighting from the point of view of the phone.
+   - Creates lidar like ( less points ) .ply pointcloud representing 3d scan of the cave profile.
 
 ### Measurement Process
 
-1. The measurement wheel is clamped around the cave diving guideline
-2. As the diver moves forward, the wheel rotates freely
-3. Each rotation is detected and converted to distance traveled
-4. Survey points are automatically recorded with:
-   - Point number
-   - Compass heading
-   - Total distance from start
-   - Depth (manually adjustable via buttons on dive case)
+1. At each tieoff the phone is aligned with the line and manual data point is saved ( green button ).
+   - The diver can set depth and LRUD data manually from the save screen.
+   - Depth you can see from your dive computer. LRUD you can use sonar range finder or eyeball it for smaller caves.
+2. The measurement wheel is then clamped around the cave diving guideline
+3. As the diver moves forward, the wheel rotates freely and the app measures distance of the current shot/section of line
+4. At the next tieoff you detach the wheel and rotate the phone around to calibrate the compass.
+5. Repeat the steps again for the next shot of line ( align with line, save manual point, clamp and measure distance)
+
 
 ### Data Collection
 
 - **Automatic Points**: Recorded on each wheel rotation
-- **Manual Points**: Added by diver at tie-off locations
-- **Export**: CSV format via iOS share options
+- **Manual Points**: Added by diver at tie-off locations 
+- **Export**: CSV format and Therion format via iOS share options
 - **Live Map**: Real-time visualization during the dive
 
 ## 🛠️ Hardware Requirements
@@ -65,12 +72,14 @@ Minimal additional parts needed:
 - **Rubber band**: For tensioning the clamp on the guideline
 - **Small magnet**: 8mm diameter (commonly available at hardware stores)
   - *Note: Larger magnets can be accommodated by drilling out the cavity*
+  - *(optional) a small ring of bike inner tube over the main wheel to improve tracktion on the line*
+
 
 ## 📦 Downloads & Resources
 
 - **App Store**: [CaveDiveMap on App Store](https://apps.apple.com/app/cavedivemap/id6743342160)
 - **3D Print Files**: [Thingiverse - Measurement Wheel Device](https://www.thingiverse.com/thing:6950056)
-- **Compatible Dive Case**: Waterproof iPhone cases (e.g., generic underwater housings)
+- **Compatible Dive Case**: Waterproof iPhone cases (e.g., generic underwater housings). Tested with: DiveVolk Seatouch 4 
 
 ## 🖼️ Screenshots
 
@@ -89,7 +98,7 @@ Minimal additional parts needed:
   - Camera (for optical detection)
   - Compass (for heading)
   - Manual depth input via UI
-- **Data Format**: CSV export
+- **Data Format**: CSV export, Therion
 
 ## 🤿 Usage Scenario
 

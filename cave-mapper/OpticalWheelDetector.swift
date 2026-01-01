@@ -26,12 +26,14 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         didSet {
             UserDefaults.standard.set(flashlightBrightness, forKey: "opticalFlashlightBrightness")
             // Update flashlight if currently running
-            if isRunning && flashlightBrightness > 0 {
-                updateFlashlightBrightness()
-            } else if isRunning && flashlightBrightness == 0 {
-                enableFlashlight(false)
-            } else if isRunning && !flashlightEnabled {
-                enableFlashlight(true)
+            if isRunning {
+                if flashlightBrightness > 0 {
+                    // Turn on or update brightness
+                    updateFlashlightBrightness()
+                } else {
+                    // Turn off when set to 0
+                    enableFlashlight(false)
+                }
             }
         }
     }
@@ -364,13 +366,13 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         }
     }
     
-    // Update flashlight brightness without turning it off/on
+    // Update flashlight brightness, turning it on if needed
     private func updateFlashlightBrightness() {
         sessionQueue.async { [weak self] in
             guard let self = self,
                   let device = self.captureDevice,
-                  device.hasTorch,
-                  device.torchMode == .on else {
+                  device.hasTorch else {
+                print("⚠️ Flashlight not available for brightness update")
                 return
             }
             
@@ -380,17 +382,21 @@ class OpticalWheelDetector: NSObject, ObservableObject {
                 if self.flashlightBrightness > 0 {
                     let level = max(0.01, self.flashlightBrightness)
                     try device.setTorchModeOn(level: level)
-                    print("🔦 Flashlight brightness adjusted to \(Int(level * 100))%")
+                    print("🔦 Flashlight brightness set to \(Int(level * 100))%")
+                    
+                    DispatchQueue.main.async {
+                        self.flashlightEnabled = true
+                    }
                 } else {
                     device.torchMode = .off
                     print("🔦 Flashlight turned OFF (brightness set to 0)")
+                    
+                    DispatchQueue.main.async {
+                        self.flashlightEnabled = false
+                    }
                 }
                 
                 device.unlockForConfiguration()
-                
-                DispatchQueue.main.async {
-                    self.flashlightEnabled = self.flashlightBrightness > 0
-                }
             } catch {
                 print("❌ Could not adjust flashlight brightness: \(error)")
             }
