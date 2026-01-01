@@ -6,6 +6,7 @@ struct ContentView: View {
     @StateObject private var pcaMagnetometer = PCAPhaseTrackingDetector()
     @StateObject private var opticalDetector = OpticalWheelDetector()
     @StateObject private var detectionManager: WheelDetectionManager
+    @StateObject private var headingManager = HeadingManager()
     @ObservedObject private var buttonSettings = ButtonCustomizationSettings.shared
     
     init() {
@@ -30,7 +31,7 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 VStack {
-                    if let heading = magnetometer.currentHeading {
+                    if let heading = headingManager.currentHeading {
                         VStack {
                             Text("Magnetic Heading")
                                 .font(.largeTitle)
@@ -70,7 +71,7 @@ struct ContentView: View {
 
                     ZStack {
                         Button(action: {
-                            if let heading = magnetometer.currentHeading, heading.headingAccuracy > 15 {
+                            if let heading = headingManager.currentHeading, heading.headingAccuracy > 15 {
                                 showCalibrationToast = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                                     withAnimation {
@@ -163,10 +164,12 @@ struct ContentView: View {
                 }
                 .onAppear {
                     pointNumber = DataManager.loadPointNumber()
+                    headingManager.startMonitoring()  // Start heading independently
                     detectionManager.startDetection()
                     UIApplication.shared.isIdleTimerDisabled = true
                 }
                 .onDisappear {
+                    headingManager.stopMonitoring()  // Stop heading
                     detectionManager.stopDetection()
                    // UIApplication.shared.isIdleTimerDisabled = false
                 }
@@ -195,7 +198,7 @@ struct ContentView: View {
                     let savedData = SavedData(
                         recordNumber: pointNumber,
                         distance: detectionManager.roundedDistanceInMeters,
-                        heading: magnetometer.roundedMagneticHeading ?? 0,
+                        heading: headingManager.roundedMagneticHeading ?? 0,
                         depth: 0.00,
                         left: 0.0,
                         right: 0.0,
@@ -227,7 +230,7 @@ struct ContentView: View {
                 }
             }
             .navigationDestination(isPresented: $navigateToSaveDataView) {
-                SaveDataView(magnetometer: magnetometer)
+                SaveDataView(headingManager: headingManager)
             }
 //            .fullScreenCover(isPresented: $showCameraView) {
 //                CameraView(

@@ -13,7 +13,7 @@ enum ParameterType: String, CaseIterable {
 struct SaveDataView: View {
     
     @State private var pointNumber: Int = DataManager.loadPointNumber()
-    @ObservedObject var magnetometer: MagnetometerViewModel
+    @ObservedObject var headingManager: HeadingManager
     @ObservedObject private var buttonSettings = ButtonCustomizationSettings.shared
     @State private var depth: Double = DataManager.loadLastSavedDepth() // Initialize with last saved depth
     @State private var distance: Double = DataManager.loadLastSavedDistance() // Initialize with last saved distance
@@ -55,7 +55,7 @@ struct SaveDataView: View {
                 Text("Distance: \(distance, specifier: "%.2f") m")
                     .font(.system(size: 26, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
-                Text("Heading: \(magnetometer.currentHeading?.magneticHeading ?? 0, specifier: "%.2f")°")
+                Text("Heading: \(headingManager.currentHeading?.magneticHeading ?? 0, specifier: "%.2f")°")
                     .font(.system(size: 26, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
             }
@@ -292,7 +292,7 @@ struct SaveDataView: View {
         let savedData = SavedData(
             recordNumber: pointNumber,
             distance: distance,
-            heading: magnetometer.roundedMagneticHeading ?? 0,
+            heading: headingManager.roundedMagneticHeading ?? 0,
             depth: depth,
             left: left,
             right: right,

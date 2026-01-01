@@ -483,6 +483,52 @@ struct SettingsView: View {
                         .monospacedDigit()
                         .foregroundColor(.blue)
                 }
+                
+                Divider()
+                
+                // Flashlight Brightness Slider
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: detectionManager.opticalDetector.flashlightBrightness > 0 ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .foregroundColor(detectionManager.opticalDetector.flashlightBrightness > 0 ? .yellow : .gray)
+                        Text("Flashlight Brightness")
+                        Spacer()
+                        Text("\(Int(detectionManager.opticalDetector.flashlightBrightness * 100))%")
+                            .monospacedDigit()
+                            .foregroundColor(detectionManager.opticalDetector.flashlightBrightness > 0 ? .primary : .secondary)
+                    }
+                    
+                    Slider(
+                        value: Binding(
+                            get: { detectionManager.opticalDetector.flashlightBrightness },
+                            set: { newValue in
+                                detectionManager.opticalDetector.flashlightBrightness = Float(newValue)
+                            }
+                        ),
+                        in: 0...1,
+                        step: 0.05  // 5% increments
+                    ) {
+                        Text("Brightness")
+                    } minimumValueLabel: {
+                        Text("0%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } maximumValueLabel: {
+                        Text("100%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if detectionManager.opticalDetector.flashlightBrightness == 0 {
+                        Text("Flashlight is off. Slide to enable.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    } else if detectionManager.opticalDetector.flashlightBrightness >= 0.8 {
+                        Text("High brightness may cause overheating")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
             }
             
             if detectionManager.opticalDetector.isCalibrating {
@@ -505,12 +551,6 @@ struct SettingsView: View {
                 } label: {
                     Text("Start Calibration (10s)")
                 }
-            }
-            
-            HStack {
-                Image(systemName: detectionManager.opticalDetector.flashlightEnabled ? "flashlight.on.fill" : "flashlight.off.fill")
-                Text(detectionManager.opticalDetector.flashlightEnabled ? "Flashlight On" : "Flashlight Off")
-                    .foregroundColor(detectionManager.opticalDetector.flashlightEnabled ? .green : .red)
             }
         }
     }

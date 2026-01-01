@@ -19,6 +19,7 @@
 		498FFF9B2ED5145F003120C8 /* front.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF972ED5145F003120C8 /* front.jpg */; };
 		498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9D2ED51477003120C8 /* PointCloud2Map.py */; };
 		498FFFA02ED51477003120C8 /* point.ply in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9C2ED51477003120C8 /* point.ply */; };
+		49AE61012F06B4EF00BBA682 /* HeadingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AE61002F06B4EE00BBA682 /* HeadingManager.swift */; };
 		49F6FB562EFDF6CE00793428 /* OpticalWheelDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */; };
 		49F6FB572EFDF6CE00793428 /* CameraPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */; };
 		49F6FB582EFDF6CE00793428 /* OpticalDetectionPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */; };
@@ -72,6 +73,7 @@
 		498FFF982ED5145F003120C8 /* map-view.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "map-view.jpg"; sourceTree = "<group>"; };
 		498FFF9C2ED51477003120C8 /* point.ply */ = {isa = PBXFileReference; lastKnownFileType = text; path = point.ply; sourceTree = "<group>"; };
 		498FFF9D2ED51477003120C8 /* PointCloud2Map.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = PointCloud2Map.py; sourceTree = "<group>"; };
+		49AE61002F06B4EE00BBA682 /* HeadingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadingManager.swift; sourceTree = "<group>"; };
 		49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPermissionHelper.swift; sourceTree = "<group>"; };
 		49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalDetectionPreviewView.swift; sourceTree = "<group>"; };
 		49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalWheelDetector.swift; sourceTree = "<group>"; };
@@ -202,6 +204,7 @@
 				4912B3F02F002C8F00D4FB28 /* PCA_IMPLEMENTATION_GUIDE.md */,
 				4912B3F22F002D6600D4FB28 /* PCAPhaseTrackingDetector.swift */,
 				4912B3F42F002E4400D4FB28 /* PCA_PHASE_TRACKING_IMPLEMENTATION.md */,
+				49AE61002F06B4EE00BBA682 /* HeadingManager.swift */,
 			);
 			path = "cave-mapper";
 			sourceTree = "<group>";
@@ -389,6 +392,7 @@
 				9886EDD12D63E61A00EF570D /* CameraView.swift in Sources */,
 				98E5E9002D9C8B3900B5607B /* MagnetometerViewModel 2.swift in Sources */,
 				49F6FB5A2EFDF7A700793428 /* WheelDetectionMethod.swift in Sources */,
+				49AE61012F06B4EF00BBA682 /* HeadingManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
