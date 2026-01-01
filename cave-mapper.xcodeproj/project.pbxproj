@@ -14,12 +14,12 @@
 		494750382EE1E99700F0177D /* ButtonCustomizationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */; };
 		494750392EE1E99700F0177D /* ButtonCustomizationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494750372EE1E99700F0177D /* ButtonCustomizationView.swift */; };
 		496BC4D92ED8306E0092B9F8 /* PointCloud3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */; };
-		498FFF962ED51436003120C8 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF952ED51436003120C8 /* README.md */; };
 		498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF982ED5145F003120C8 /* map-view.jpg */; };
 		498FFF9B2ED5145F003120C8 /* front.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF972ED5145F003120C8 /* front.jpg */; };
 		498FFF9F2ED51477003120C8 /* PointCloud2Map.py in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9D2ED51477003120C8 /* PointCloud2Map.py */; };
 		498FFFA02ED51477003120C8 /* point.ply in Resources */ = {isa = PBXBuildFile; fileRef = 498FFF9C2ED51477003120C8 /* point.ply */; };
 		49AE61012F06B4EF00BBA682 /* HeadingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AE61002F06B4EE00BBA682 /* HeadingManager.swift */; };
+		49AE61032F06B93400BBA682 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 49AE61022F06B93400BBA682 /* README.md */; };
 		49F6FB562EFDF6CE00793428 /* OpticalWheelDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */; };
 		49F6FB572EFDF6CE00793428 /* CameraPermissionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */; };
 		49F6FB582EFDF6CE00793428 /* OpticalDetectionPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */; };
@@ -68,12 +68,12 @@
 		494750362EE1E99700F0177D /* ButtonCustomizationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationSettings.swift; sourceTree = "<group>"; };
 		494750372EE1E99700F0177D /* ButtonCustomizationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonCustomizationView.swift; sourceTree = "<group>"; };
 		496BC4D82ED8306E0092B9F8 /* PointCloud3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointCloud3DView.swift; sourceTree = "<group>"; };
-		498FFF952ED51436003120C8 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		498FFF972ED5145F003120C8 /* front.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = front.jpg; sourceTree = "<group>"; };
 		498FFF982ED5145F003120C8 /* map-view.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "map-view.jpg"; sourceTree = "<group>"; };
 		498FFF9C2ED51477003120C8 /* point.ply */ = {isa = PBXFileReference; lastKnownFileType = text; path = point.ply; sourceTree = "<group>"; };
 		498FFF9D2ED51477003120C8 /* PointCloud2Map.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = PointCloud2Map.py; sourceTree = "<group>"; };
 		49AE61002F06B4EE00BBA682 /* HeadingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadingManager.swift; sourceTree = "<group>"; };
+		49AE61022F06B93400BBA682 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		49F6FB532EFDF6CE00793428 /* CameraPermissionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPermissionHelper.swift; sourceTree = "<group>"; };
 		49F6FB542EFDF6CE00793428 /* OpticalDetectionPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalDetectionPreviewView.swift; sourceTree = "<group>"; };
 		49F6FB552EFDF6CE00793428 /* OpticalWheelDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpticalWheelDetector.swift; sourceTree = "<group>"; };
@@ -159,6 +159,7 @@
 				9852A61B2CEBBBE0000C2A15 /* cave-mapperTests */,
 				9852A6252CEBBBE0000C2A15 /* cave-mapperUITests */,
 				9852A6092CEBBBDF000C2A15 /* Products */,
+				49AE61022F06B93400BBA682 /* README.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -193,7 +194,6 @@
 				498FFF9E2ED51477003120C8 /* tools */,
 				498FFF992ED5145F003120C8 /* Manual */,
 				989B57662CEE504500E46076 /* SaveDataView.swift */,
-				498FFF952ED51436003120C8 /* README.md */,
 				9852A60F2CEBBBE0000C2A15 /* Assets.xcassets */,
 				982268BC2DA4820C00E9A5E3 /* 3d assets */,
 				9852A6112CEBBBE0000C2A15 /* Preview Content */,
@@ -346,7 +346,7 @@
 				498FFFA02ED51477003120C8 /* point.ply in Resources */,
 				498FFF9A2ED5145F003120C8 /* map-view.jpg in Resources */,
 				498FFF9B2ED5145F003120C8 /* front.jpg in Resources */,
-				498FFF962ED51436003120C8 /* README.md in Resources */,
+				49AE61032F06B93400BBA682 /* README.md in Resources */,
 				9852A6102CEBBBE0000C2A15 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

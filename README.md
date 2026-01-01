@@ -1,47 +1,115 @@
-IOS APP designed for Iphone which uses a waterproof case for the phone and 3d printed wheel with a magnet to measure lines in underwater caves.
+# CaveDiveMap 🏊‍♂️🗺️
 
-Concept:
-The app uses the magnetometer to detect the proximity of a magnet on a wheel.
-The wheel is clamped around the cave diving line and rotates as the diver moves the device forward.
-Each rotation the app detects the peak magnetic field value and by knowing the diameter/circumference of the wheel masures the distance traveled along the line.
+An iOS app for underwater cave surveying that uses magnetometer-based distance measurement with a 3D-printed encoder wheel device.
 
-The app then saves a data point each rotation with the following data: point number, compass heading, distance ( total from the first point ), depth ( user can adjust via 2 buttons on the dive case ).
+<p align="center">
+  <img src="Manual/front.jpg" alt="App Run Mode" width="300"/>
+  <img src="Manual/map-view.jpg" alt="Live Map View" width="300"/>
+</p>
 
-The app has also manual points which are added by the diver on each tieoff point.
+## 🌊 Overview
 
-The survey data can be exported in CSV and shared via IOS share opitons.
+CaveDiveMap is designed for cave divers who need to accurately survey underwater caves. The app works with a waterproof iPhone case and a custom 3D-printed measurement wheel that tracks distance traveled along cave diving lines.
 
-There is also option to view a live map for reference during the dive.
+## 🎯 How It Works
 
-Credits: Code entirely written by ChatGPT. I don't code on SWIFT language or IOS.
+### Detection Methods
 
-The device:
-The app requires a 3d printed device which is attached to an iphone dive case.
-The device contains the measuring wheel and guideline clamp mechanism.
+The app supports two methods for detecting wheel rotations:
 
-My goals for the device:
-I wanted the device to be fully 3d printable, so you can make it in any place where there is a 3d printer available. 
-No springs or screws, nuts or other hardware required.
+1. **Magnetic Detection** (Primary)
+   - Uses the iPhone's magnetometer to detect a magnet embedded in the wheel
+   - Detects peak magnetic field values as the wheel rotates
+   - Calculates distance based on wheel circumference
 
+2. **Optical Detection** (Alternative)
+   - Uses the iPhone's macro camera and flashlight
+   - Detects brightness changes from wheel openings
+   - Provides redundancy in challenging magnetic environments
 
-Currently, only non 3d printed parts needed are:
-- Rubber band for keeping the slider gate clamped down/tensioned on the cave line.
-- small magnet 8mm in diameter. ( available in hardware stores )
-If you have a bigger magnet, you can drill out the hole bigger or melt it or glue it on the wheel whatever works.
+### Measurement Process
 
+1. The measurement wheel is clamped around the cave diving guideline
+2. As the diver moves forward, the wheel rotates freely
+3. Each rotation is detected and converted to distance traveled
+4. Survey points are automatically recorded with:
+   - Point number
+   - Compass heading
+   - Total distance from start
+   - Depth (manually adjustable via buttons on dive case)
 
-App is now available in app store:
-https://apps.apple.com/bg/app/cavedivemap/id6743342160
+### Data Collection
 
-STL files for the measurement wheel device available at:
-https://www.thingiverse.com/thing:6950056
+- **Automatic Points**: Recorded on each wheel rotation
+- **Manual Points**: Added by diver at tie-off locations
+- **Export**: CSV format via iOS share options
+- **Live Map**: Real-time visualization during the dive
 
-Dive Case I use for iphone 15:
-https://hz.aliexpress.com/i/1005005277943648.html?src=google&albch=search&acnt=479-062-3723&isdl=y&aff_short_key=UneMJZVf&albcp=266121556&albag=7593673036&slnk=&trgt=dsa-42862830006&plac=&crea=426823514858&albad=426823514858&netw=g&device=c&mtctp=&memo1=&albbt=Google_7_search&aff_platform=google&albagn=888888&isSmbActive=false&isSmbAutoCall=false&needSmbHouyi=false&gad_source=1&gclid=CjwKCAiAtsa9BhAKEiwAUZAszdImIvknDFVuMjy0B4ktC4mgl3NdYCsqJR2yrvNp2XDpOteMqIDGphoCJgsQAvD_BwE
+## 🛠️ Hardware Requirements
 
-The app in run mode:
-![screenshot](Manual/front.jpg)
+### 3D-Printed Device
 
+The app requires a custom 3D-printed device that attaches to a waterproof iPhone case. The device includes:
+- Measurement wheel with magnet cavity
+- Guideline clamp mechanism
+- Mount for iPhone dive case
 
-The example live map view:
-![screenshot](Manual/map-view.jpg)
+**Design Goals:**
+- Fully 3D-printable for easy fabrication anywhere
+- No springs, screws, or special hardware required
+- Simple assembly and maintenance
+
+### Non-Printed Components
+
+Minimal additional parts needed:
+- **Rubber band**: For tensioning the clamp on the guideline
+- **Small magnet**: 8mm diameter (commonly available at hardware stores)
+  - *Note: Larger magnets can be accommodated by drilling out the cavity*
+
+## 📦 Downloads & Resources
+
+- **App Store**: [CaveDiveMap on App Store](https://apps.apple.com/app/cavedivemap/id6743342160)
+- **3D Print Files**: [Thingiverse - Measurement Wheel Device](https://www.thingiverse.com/thing:6950056)
+- **Compatible Dive Case**: Waterproof iPhone cases (e.g., generic underwater housings)
+
+## 🖼️ Screenshots
+
+### App in Run Mode
+![App Run Mode](Manual/front.jpg)
+
+### Live Map View
+![Live Map View](Manual/map-view.jpg)
+
+## 🔧 Technical Details
+
+- **Platform**: iOS (iPhone)
+- **Language**: Swift
+- **Sensors Used**: 
+  - Magnetometer (for magnetic detection)
+  - Camera (for optical detection)
+  - Compass (for heading)
+  - Manual depth input via UI
+- **Data Format**: CSV export
+
+## 🤿 Usage Scenario
+
+1. Attach the 3D-printed device to your waterproof iPhone case
+2. Calibrate the wheel diameter in the app
+3. Choose detection method (magnetic or optical)
+4. Clamp the device onto the cave guideline
+5. Start survey mode
+6. The app automatically records data as you move along the line
+7. Add manual waypoints at tie-offs or key locations
+8. Export survey data after the dive
+
+## 📝 License
+
+Free and open source, use everything for anything you want. No license whatsoever. 
+
+## 🙏 Acknowledgments
+
+This project demonstrates the power of accessible technology for specialized scientific applications in cave diving and underwater exploration.
+
+---
+
+**⚠️ Safety Notice**: This app is a survey tool and should not be used as a primary navigation device. Always follow proper cave diving safety protocols and use redundant navigation methods.
