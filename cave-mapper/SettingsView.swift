@@ -7,6 +7,8 @@ struct SettingsView: View {
     // Don't observe the entire manager - just receive it for method calls
     let detectionManager: WheelDetectionManager
     @State private var showOpticalPreview = false
+    @AppStorage(TherionExportSettings.surveyTitleKey) private var therionSurveyTitle = TherionExportSettings.defaultSurveyTitle
+    @AppStorage(TherionExportSettings.teamKey) private var therionTeam = TherionExportSettings.defaultTeam
     
     // Local state for detection method to isolate from high-frequency updates
     @State private var localDetectionMethod: WheelDetectionMethod
@@ -91,6 +93,9 @@ struct SettingsView: View {
                     // 🛞 Wheel Settings (common to both methods)
                     wheelSettingsSection
                     
+                    // 📄 Therion export
+                    therionExportSection
+                    
                     // 🧼 Reset
                     resetSection
                     
@@ -138,13 +143,34 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Input filtering
+
+    /// Keeps digits, one decimal separator and, where allowed, a leading minus.
+    /// A single signed magnetometer axis can sit entirely below zero, so its
+    /// thresholds have to be enterable as negative numbers.
+    private func filteredNumericText(_ text: String, allowNegative: Bool) -> String {
+        var filtered = ""
+        for char in text {
+            if char == "-" {
+                if allowNegative && filtered.isEmpty { filtered.append(char) }
+                continue
+            }
+            if String(char) == decimalSeparator {
+                if !filtered.contains(decimalSeparator) { filtered.append(char) }
+                continue
+            }
+            if char.isASCII && char.isNumber { filtered.append(char) }
+        }
+        return filtered
+    }
+
     // MARK: - Commit Helpers
     private func commitLowThreshold() {
         if let n = numberFormatter.number(from: lowThresholdText)?.doubleValue {
             viewModel.lowThreshold = n
-        } else {
-            viewModel.lowThreshold = 0
         }
+        // Unparsable input (empty, a lone "-") leaves the threshold as it was;
+        // it used to become 0, which makes the detector count on noise.
         // Persist immediately so it survives reboot even if calibration isn’t run afterwards
         UserDefaults.standard.set(viewModel.lowThreshold, forKey: "lowThreshold")
         lowThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.lowThreshold)) ?? ""
@@ -153,9 +179,9 @@ struct SettingsView: View {
     private func commitHighThreshold() {
         if let n = numberFormatter.number(from: highThresholdText)?.doubleValue {
             viewModel.highThreshold = n
-        } else {
-            viewModel.highThreshold = 0
         }
+        // Unparsable input (empty, a lone "-") leaves the threshold as it was;
+        // it used to become 0, which makes the detector count on noise.
         // Persist immediately so it survives reboot even if calibration isn’t run afterwards
         UserDefaults.standard.set(viewModel.highThreshold, forKey: "highThreshold")
         highThresholdText = numberFormatter.string(from: NSNumber(value: viewModel.highThreshold)) ?? ""
@@ -163,7 +189,14 @@ struct SettingsView: View {
 
     private func commitWheelDiameter() {
         let parsed = numberFormatter.number(from: wheelDiameterText)?.doubleValue ?? 0
-        viewModel.wheelCircumference = parsed * Double.pi
+        // An empty or unparsable field used to store a zero circumference, which
+        // silently turns every distance into 0. Keep the previous value instead.
+        // The text is rounded to 2 decimals, so only write back a real edit —
+        // otherwise just focusing the field nudged 11.78 to 11.781.
+        let currentDiameter = viewModel.wheelCircumference / Double.pi
+        if parsed > 0, abs(parsed - currentDiameter) >= 0.005 {
+            viewModel.wheelCircumference = parsed * Double.pi
+        }
         let diameter = viewModel.wheelCircumference / Double.pi
         wheelDiameterText = numberFormatter.string(from: NSNumber(value: diameter)) ?? ""
     }
@@ -177,20 +210,12 @@ struct SettingsView: View {
                 TextField("Low Threshold", text: $lowThresholdText, onEditingChanged: { editing in
                     if !editing { commitLowThreshold() }
                 })
-                .keyboardType(.decimalPad)
+                .keyboardType(.numbersAndPunctuation)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 100)
                 .disabled(viewModel.isCalibrating)
                 .onReceive(Just(lowThresholdText)) { newValue in
-                    let allowed = "0123456789" + decimalSeparator
-                    var filtered = ""
-                    for char in newValue {
-                        guard allowed.contains(char) else { continue }
-                        if String(char) == decimalSeparator && filtered.contains(decimalSeparator) {
-                            continue
-                        }
-                        filtered.append(char)
-                    }
+                    let filtered = filteredNumericText(newValue, allowNegative: true)
                     if filtered != newValue {
                         lowThresholdText = filtered
                     }
@@ -203,20 +228,12 @@ struct SettingsView: View {
                 TextField("High Threshold", text: $highThresholdText, onEditingChanged: { editing in
                     if !editing { commitHighThreshold() }
                 })
-                .keyboardType(.decimalPad)
+                .keyboardType(.numbersAndPunctuation)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 100)
                 .disabled(viewModel.isCalibrating)
                 .onReceive(Just(highThresholdText)) { newValue in
-                    let allowed = "0123456789" + decimalSeparator
-                    var filtered = ""
-                    for char in newValue {
-                        guard allowed.contains(char) else { continue }
-                        if String(char) == decimalSeparator && filtered.contains(decimalSeparator) {
-                            continue
-                        }
-                        filtered.append(char)
-                    }
+                    let filtered = filteredNumericText(newValue, allowNegative: true)
                     if filtered != newValue {
                         highThresholdText = filtered
                     }
@@ -241,6 +258,12 @@ struct SettingsView: View {
                     viewModel.startCalibration(durationSeconds: 10)
                 } label: {
                     Text("Start Calibration (10s)")
+                }
+
+                if let message = viewModel.calibrationMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundColor(viewModel.calibrationFailed ? .red : .green)
                 }
             }
         }
@@ -551,6 +574,12 @@ struct SettingsView: View {
                 } label: {
                     Text("Start Calibration (10s)")
                 }
+
+                if let message = detectionManager.opticalDetector.calibrationMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundColor(detectionManager.opticalDetector.calibrationFailed ? .red : .green)
+                }
             }
         }
     }
@@ -581,19 +610,30 @@ struct SettingsView: View {
                 .frame(width: 100)
                 .disabled(viewModel.isCalibrating)
                 .onReceive(Just(wheelDiameterText)) { newValue in
-                    let allowed = "0123456789" + decimalSeparator
-                    var filtered = ""
-                    for char in newValue {
-                        guard allowed.contains(char) else { continue }
-                        if String(char) == decimalSeparator && filtered.contains(decimalSeparator) {
-                            continue
-                        }
-                        filtered.append(char)
-                    }
+                    let filtered = filteredNumericText(newValue, allowNegative: false)
                     if filtered != newValue {
                         wheelDiameterText = filtered
                     }
                 }
+            }
+        }
+    }
+    
+    private var therionExportSection: some View {
+        Section(header: Text("Therion Export")) {
+            HStack {
+                Text("Survey Title")
+                Spacer()
+                TextField("Sump 1", text: $therionSurveyTitle)
+                    .multilineTextAlignment(.trailing)
+                    .autocorrectionDisabled()
+            }
+            HStack {
+                Text("Team")
+                Spacer()
+                TextField("Team name", text: $therionTeam)
+                    .multilineTextAlignment(.trailing)
+                    .autocorrectionDisabled()
             }
         }
     }

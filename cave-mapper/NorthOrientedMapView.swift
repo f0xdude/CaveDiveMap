@@ -200,8 +200,10 @@ struct NorthOrientedMapView: View {
             let rightD = CGFloat(manualData[i].right) * conversionFactor
 
             if i == 0 || i == count - 1 {
-                // endpoints: perpendicular offset
-                let θ    = guideAng[i]
+                // endpoints: perpendicular offset. guideAng[i] is the bearing of
+                // the shot *arriving* at station i; the first station has no
+                // arriving shot, so its walls follow the shot that leaves it.
+                let θ    = guideAng[i == 0 ? 1 : i]
                 let lOff = CGPoint(x: -leftD * sin(θ),
                                    y: -leftD * cos(θ))
                 let rOff = CGPoint(x:  rightD * sin(θ),
@@ -228,8 +230,12 @@ struct NorthOrientedMapView: View {
                 let n2L   = CGVector(dx: -sin(θ2), dy: -cos(θ2))
                 let sumL  = CGVector(dx: n1L.dx + n2L.dx,
                                      dy: n1L.dy + n2L.dy)
-                let dotL  = sumL.dx * n1L.dx + sumL.dy * n1L.dy
-                let mL    = CGPoint(x: sumL.dx * (leftD  / dotL),
+                // dot → 0 as the line doubles back on itself, which shot the miter
+                // point off to infinity (NaN on an exact reversal, and a NaN in
+                // the path makes SwiftUI drop the whole map). Flooring it leaves
+                // turns under 120° untouched and caps the spike beyond that.
+                let dotL  = max(sumL.dx * n1L.dx + sumL.dy * n1L.dy, 0.5)
+                let mL   = CGPoint(x: sumL.dx * (leftD  / dotL),
                                     y: sumL.dy * (leftD  / dotL))
                 leftPts.append(CGPoint(x: gp.x + mL.x,
                                        y: gp.y + mL.y))
@@ -239,7 +245,7 @@ struct NorthOrientedMapView: View {
                 let n2R   = CGVector(dx:  sin(θ2), dy:  cos(θ2))
                 let sumR  = CGVector(dx: n1R.dx + n2R.dx,
                                      dy: n1R.dy + n2R.dy)
-                let dotR  = sumR.dx * n1R.dx + sumR.dy * n1R.dy
+                let dotR  = max(sumR.dx * n1R.dx + sumR.dy * n1R.dy, 0.5)
                 let mR    = CGPoint(x: sumR.dx * (rightD / dotR),
                                     y: sumR.dy * (rightD / dotR))
                 rightPts.append(CGPoint(x: gp.x + mR.x,
@@ -399,6 +405,7 @@ struct NorthOrientedMapView: View {
         var segmentDistances: [Double] = []
         var currentPosition = center
         var previousDistance: Double = 0.0
+        var previousDepth: Double = 0.0
 
         for data in manualData {
             let angle = data.heading.toMathRadiansFromHeading()
@@ -409,9 +416,17 @@ struct NorthOrientedMapView: View {
             segmentDistances.append(segmentDist)
             previousDistance = data.distance
 
-            // move out along this bearing by segmentDist
-            let dx = conversionFactor * CGFloat(segmentDist * cos(angle))
-            let dy = conversionFactor * CGFloat(segmentDist * sin(angle))
+            // The wheel measures along the sloping guideline, but a plan view
+            // needs the horizontal component: sqrt(shot² − Δdepth²). Clamped at
+            // zero for a shot steeper than its own length (entry noise), which
+            // plots as pure descent.
+            let horizontalDist = max(0, segmentDist * segmentDist
+                - (data.depth - previousDepth) * (data.depth - previousDepth)).squareRoot()
+            previousDepth = data.depth
+
+            // move out along this bearing by the horizontal component
+            let dx = conversionFactor * CGFloat(horizontalDist * cos(angle))
+            let dy = conversionFactor * CGFloat(horizontalDist * sin(angle))
             currentPosition.x += dx
             currentPosition.y -= dy
 
@@ -427,15 +442,42 @@ struct NorthOrientedMapView: View {
     }
     
     private func fitMap(in size: CGSize) {
-        guard !mapData.isEmpty else { return }
+        guard !mapData.isEmpty, size.width > 0, size.height > 0 else { return }
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let (guidePath, _, _) = createFullGuidePath(center: center)
         let boundingRect = guidePath.boundingRect
-        
-        let widthRatio = size.width / boundingRect.width
-        let heightRatio = size.height / boundingRect.height
+
+        // The survey collapses to a single point whenever every station shares
+        // one position: the very first station saved (distance starts at 0, so
+        // its shot length is 0), or a whole run where the wheel never turned.
+        // Dividing the screen size by that zero box yields an infinite scale and
+        // a NaN offset, which makes SwiftUI drop the map and leaves nothing but
+        // the navigation bar. Sit at 1:1 instead.
+        let isUsable = boundingRect.width.isFinite && boundingRect.height.isFinite
+            && boundingRect.midX.isFinite && boundingRect.midY.isFinite
+        guard isUsable, boundingRect.width > 0 || boundingRect.height > 0 else {
+            scale = 1.0
+            offset = .zero
+            return
+        }
+
+        // A passage running dead along one axis — every shot at heading 90.00,
+        // say — flattens that axis to exactly zero while the other still has
+        // extent. Fit to the axis that has extent and let the flat one ride
+        // along, rather than dividing by its zero.
+        let widthRatio = boundingRect.width > 0
+            ? size.width / boundingRect.width
+            : CGFloat.greatestFiniteMagnitude
+        let heightRatio = boundingRect.height > 0
+            ? size.height / boundingRect.height
+            : CGFloat.greatestFiniteMagnitude
         let fitScale = min(widthRatio, heightRatio) * 0.9
-        
+        guard fitScale.isFinite, fitScale > 0 else {
+            scale = 1.0
+            offset = .zero
+            return
+        }
+
         scale = fitScale
         offset = CGSize(
             width: (center.x - boundingRect.midX) * fitScale,
@@ -456,6 +498,7 @@ struct NorthOrientedMapView: View {
             .filter { $0.rtype == "manual" }
             .sorted { $0.recordNumber < $1.recordNumber }
 
+        var previousDepth: Double = 0.0
         path.move(to: currentPosition)
         for data in manualData {
             let angle = data.heading.toMathRadiansFromHeading()
@@ -464,8 +507,14 @@ struct NorthOrientedMapView: View {
             let segmentDist = data.distance - previousDistance
             previousDistance = data.distance
 
-            let dx = conversionFactor * CGFloat(segmentDist * cos(angle))
-            let dy = conversionFactor * CGFloat(segmentDist * sin(angle))
+            // Same horizontal projection as createGuideForManualPoints, so the
+            // fitted bounds match the drawn map.
+            let horizontalDist = max(0, segmentDist * segmentDist
+                - (data.depth - previousDepth) * (data.depth - previousDepth)).squareRoot()
+            previousDepth = data.depth
+
+            let dx = conversionFactor * CGFloat(horizontalDist * cos(angle))
+            let dy = conversionFactor * CGFloat(horizontalDist * sin(angle))
             currentPosition.x += dx
             currentPosition.y -= dy
 
@@ -517,11 +566,41 @@ struct NorthOrientedMapView: View {
             return
         }
         
+        // Therion uses the survey date (e.g. for magnetic declination), so stamp
+        // the export with today's date rather than a fixed one.
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy.M.d"
+        let surveyDate = dateFormatter.string(from: Date())
+
+        // Survey title and team come from Settings (they used to be fixed text).
+        // A Therion survey id may only contain letters, digits, _ and -.
+        let defaults = UserDefaults.standard
+        let title = (defaults.string(forKey: TherionExportSettings.surveyTitleKey) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let surveyTitle = title.isEmpty ? TherionExportSettings.defaultSurveyTitle : title
+        let team = (defaults.string(forKey: TherionExportSettings.teamKey) ?? TherionExportSettings.defaultTeam)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        var surveyID = String(surveyTitle.lowercased().unicodeScalars.map { scalar -> Character in
+            let isIDCharacter = scalar.isASCII
+                && (CharacterSet.alphanumerics.contains(scalar) || scalar == "_" || scalar == "-")
+            return isIDCharacter ? Character(scalar) : "_"
+        })
+        if surveyID.allSatisfy({ $0 == "_" }) { surveyID = "sump_1" }
+        func quoted(_ text: String) -> String {
+            "\"" + text.replacingOccurrences(of: "\"", with: "'") + "\""
+        }
+
         var therionText = """
-        survey sump_1 -title "Sump 1"
+        survey \(surveyID) -title \(quoted(surveyTitle))
         centerline
-        team "PaldinCaveDivingGroup"
-        date 2024.2.26
+
+        """
+        if !team.isEmpty {
+            therionText += "team \(quoted(team))\n"
+        }
+        therionText += """
+        date \(surveyDate)
         calibrate depth 0 -1
         units length depth meters
         units compass degrees
@@ -538,15 +617,29 @@ struct NorthOrientedMapView: View {
             let from = i
             let to = i + 1
             
-            let length = end.distance - start.distance
+            var length = end.distance - start.distance
             let compass = end.heading
             let depthChange = end.depth - start.depth
-            let leftVal = end.left
-            let rightVal = end.right
-            let upVal = end.up
-            let downVal = end.down
+
+            // Therion rejects the whole file if a diving shot is shorter than its
+            // own depth change (a depth typed in whole metres against a short
+            // shot will do it). Export it as a vertical shot, as the map draws
+            // it, and say so in the file.
+            var note = ""
+            if abs(depthChange) > length {
+                note = String(format: " # length raised from %.2f: shorter than its depth change", length)
+                length = abs(depthChange)
+            }
+
+            // Dimensions as [from to] pairs. A single value per shot only ever
+            // carried the far station's walls, so station 0's were never exported.
+            func pair(_ a: Double, _ b: Double) -> String {
+                String(format: "[%.1f %.1f]", a, b)
+            }
             
-            let line = "\(from) \(to) \(String(format: "%.1f", length)) \(Int(compass)) \(String(format: "%.1f", depthChange)) \(String(format: "%.1f", leftVal)) \(String(format: "%.1f", rightVal)) \(String(format: "%.1f", upVal)) \(String(format: "%.1f", downVal))\n"
+            // Int(compass) truncated (359.9° became 359°) and %.1f threw away the
+            // wheel's centimetre resolution on every shot.
+            let line = "\(from) \(to) \(String(format: "%.2f", length)) \(String(format: "%.1f", compass)) \(String(format: "%.1f", depthChange)) \(pair(start.left, end.left)) \(pair(start.right, end.right)) \(pair(start.up, end.up)) \(pair(start.down, end.down))\(note)\n"
             therionText += line
         }
         
@@ -569,6 +662,14 @@ struct NorthOrientedMapView: View {
             rootViewController.present(activityViewController, animated: true, completion: nil)
         }
     }
+}
+
+/// Keys shared by the Therion export and its fields on the Settings screen.
+enum TherionExportSettings {
+    static let surveyTitleKey = "therionSurveyTitle"
+    static let teamKey = "therionTeam"
+    static let defaultSurveyTitle = "Sump 1"
+    static let defaultTeam = "PaldinCaveDivingGroup"
 }
 
 private extension Double {

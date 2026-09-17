@@ -23,7 +23,7 @@ import Accelerate
 /// 6. Compute phase θ(t) = atan2(v, u)
 /// 7. Unwrap phase and track total phase
 /// 8. Validity gates (planarity, motion detection, inertial rejection)
-/// 9. Count rotations by accumulating +2π of forward phase
+/// 9. Count rotations by accumulating signed phase: one per net ±2π
 class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let motionManager = CMMotionManager()
     private let locationManager = CLLocationManager()
@@ -88,9 +88,14 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
     private var totalPhase: Double = 0.0
     private var lastPhase: Double = 0.0
     private var previousPhaseAngle: Double = 0.0 // For motion detection
-    private var forwardPhaseAccum: Double = 0.0
-    private var forwardSign: Double = 0.0 // +1 or -1, learned from first stable motion
-    private var hasLearnedForwardSign = false
+    /// Net signed phase since the last counted rotation. Deliberately survives
+    /// `resetState()`: detection restarts at every station, and throwing away the
+    /// part-turn each time under-reads the line by about half a revolution per
+    /// station.
+    private var phaseAccum: Double = 0.0
+    /// False until one phase sample has been taken, so the first sample after a
+    /// (re)start is a reference rather than a jump from 0 of up to half a turn.
+    private var hasLastPhase = false
     
     // MARK: - Validity Gates
     private var lastValidMotionTime: Date?
@@ -286,9 +291,7 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         totalPhase = 0.0
         lastPhase = 0.0
         previousPhaseAngle = 0.0
-        forwardPhaseAccum = 0.0
-        forwardSign = 0.0
-        hasLearnedForwardSign = false
+        hasLastPhase = false
         gyroHistory.removeAll()
         accelHistory.removeAll()
         lastValidMotionTime = nil
@@ -387,7 +390,8 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         phaseAngle = phase
         
         // Step 8: Unwrap and track phase
-        let phaseDelta = unwrapPhaseDelta(from: lastPhase, to: phase)
+        let phaseDelta = hasLastPhase ? unwrapPhaseDelta(from: lastPhase, to: phase) : 0.0
+        hasLastPhase = true
         totalPhase += phaseDelta
         lastPhase = phase
         
@@ -407,32 +411,25 @@ class PCAPhaseTrackingDetector: NSObject, ObservableObject, CLLocationManagerDel
         if isValid {
             lastValidMotionTime = Date()
             
-            // Learn forward sign from first stable motion
-            if !hasLearnedForwardSign && abs(phaseDelta) > 0.01 {
-                forwardSign = phaseDelta > 0 ? 1.0 : -1.0
-                hasLearnedForwardSign = true
-                print("🎯 Learned forward sign: \(forwardSign)")
-            }
-            
-            // Step 10: Accumulate forward phase and count rotations
-            if hasLearnedForwardSign {
-                let signedDelta = phaseDelta * forwardSign
-                if signedDelta > 0 {
-                    forwardPhaseAccum += signedDelta
-                    
-                    // Debug: Show phase accumulation occasionally
-                    if Int.random(in: 0..<50) == 0 {
-                        print("📈 Forward phase: \(String(format: "%.2f", forwardPhaseAccum)) / \(String(format: "%.2f", 2.0 * .pi))")
-                    }
-                    
-                    // Count complete 2π rotations
-                    let pendingRotations = Int(floor(forwardPhaseAccum / (2.0 * .pi)))
-                    if pendingRotations > 0 {
-                        revolutions += pendingRotations
-                        forwardPhaseAccum -= Double(pendingRotations) * 2.0 * .pi
-                        print("🎯 Rotation detected! Total: \(revolutions)")
-                    }
-                }
+            // Step 10: Accumulate *signed* phase and count one rotation per net
+            // ±2π.
+            //
+            // This used to learn a "forward" sign from a single sample and then
+            // add only the deltas of that sign, discarding the rest. Discarding
+            // half of a zero-mean jitter turns it into steady forward drift, so a
+            // wheel rocking on a taut line, or plain phase noise, accrued distance
+            // — and if that one sample happened to be a backward twitch, every
+            // real rotation afterwards was the part being discarded.
+            //
+            // With the sign kept, rocking and noise cancel instead of adding up.
+            // A full turn counts in either direction, because which way the wheel
+            // spins depends only on which way round the device sits on the line.
+            phaseAccum += phaseDelta
+            let turns = Int(phaseAccum / (2.0 * .pi)) // truncates toward zero
+            if turns != 0 {
+                revolutions += abs(turns)
+                phaseAccum -= Double(turns) * 2.0 * .pi
+                print("🎯 Rotation detected! Total: \(revolutions)")
             }
         }
     }

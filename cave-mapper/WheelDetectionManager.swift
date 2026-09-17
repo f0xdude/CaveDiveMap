@@ -23,12 +23,17 @@ class WheelDetectionManager: ObservableObject {
         }
     }
     
-    @Published var rotationCount: Int = 0
+    @Published var rotationCount: Int = 0 {
+        // The wheel count is the survey's odometer: persist it on every change,
+        // under its own key — the station counter advances on every saved
+        // record, so seeding one from the other corrupts distance on relaunch.
+        didSet { DataManager.saveRotationCount(rotationCount) }
+    }
     @Published var isRunning = false
     
-    // MARK: - Private Properties for Throttling
-    private var lastRotationUpdateTime: TimeInterval = 0
-    private let rotationUpdateInterval: TimeInterval = 0.1 // Throttle to 10Hz
+    // Counts change once per wheel revolution, so they are forwarded unthrottled:
+    // the old 10 Hz gate dropped any update that landed inside its window, and if
+    // the wheel then stopped the odometer stayed one revolution short.
     private var isSwitchingMethod = false // Prevent concurrent switches
     
     // MARK: - Detection Components
@@ -59,42 +64,30 @@ class WheelDetectionManager: ObservableObject {
     
     // MARK: - Setup
     private func setupObservers() {
-        // Observe magnetic detector rotation count with throttling
+        // Observe magnetic detector rotation count
         magneticDetector.$revolutions
             .receive(on: DispatchQueue.main)
             .sink { [weak self] count in
                 guard let self = self, self.detectionMethod == .magnetic else { return }
-                let now = CACurrentMediaTime()
-                if (now - self.lastRotationUpdateTime) >= self.rotationUpdateInterval {
-                    self.rotationCount = count
-                    self.lastRotationUpdateTime = now
-                }
+                if self.rotationCount != count { self.rotationCount = count }
             }
             .store(in: &cancellables)
         
-        // Observe PCA detector rotation count with throttling
+        // Observe PCA detector rotation count
         pcaDetector.$revolutions
             .receive(on: DispatchQueue.main)
             .sink { [weak self] count in
                 guard let self = self, self.detectionMethod == .magneticPCA else { return }
-                let now = CACurrentMediaTime()
-                if (now - self.lastRotationUpdateTime) >= self.rotationUpdateInterval {
-                    self.rotationCount = count
-                    self.lastRotationUpdateTime = now
-                }
+                if self.rotationCount != count { self.rotationCount = count }
             }
             .store(in: &cancellables)
         
-        // Observe optical detector rotation count with throttling
+        // Observe optical detector rotation count
         opticalDetector.$rotationCount
             .receive(on: DispatchQueue.main)
             .sink { [weak self] count in
                 guard let self = self, self.detectionMethod == .optical else { return }
-                let now = CACurrentMediaTime()
-                if (now - self.lastRotationUpdateTime) >= self.rotationUpdateInterval {
-                    self.rotationCount = count
-                    self.lastRotationUpdateTime = now
-                }
+                if self.rotationCount != count { self.rotationCount = count }
             }
             .store(in: &cancellables)
         
@@ -226,19 +219,13 @@ class WheelDetectionManager: ObservableObject {
     
     // MARK: - Persistence
     private func loadRotationCount() {
-        // Use the magnetic detector's saved revolution count as the initial value
-        let savedCount = magneticDetector.revolutions
-        rotationCount = savedCount
-        
-        // Sync to both PCA and optical detectors - delay to avoid init-time publishing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            self.pcaDetector.revolutions = savedCount
-            self.opticalDetector.rotationCount = savedCount
-        }
+        // Use the magnetic detector's saved revolution count as the initial value.
+        // The PCA and optical detectors are seeded with the same count where they
+        // are created (ContentView.init), before any observer is attached.
+        rotationCount = magneticDetector.revolutions
     }
     
     private func saveRotationCount() {
-        DataManager.savePointNumber(rotationCount)
+        DataManager.saveRotationCount(rotationCount)
     }
 }

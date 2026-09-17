@@ -79,6 +79,11 @@ struct SaveDataView: View {
                 Text("\(currentParameterValue, specifier: "%.2f") m")
                     .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundColor(.primary)
+                if selectedParameter == .depth && depth < 0 {
+                    Text("Above water")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(.orange)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(16)
@@ -241,9 +246,19 @@ struct SaveDataView: View {
         }
     }
 
-    private func decrement(by step: Double) {
+    // Depth may go negative: a line tied off above the water level in an air
+    // chamber is recorded as e.g. -1 m so the sump links correctly to the dry
+    // cave survey. Decrementing always stops at the surface (0) first, and only
+    // single taps go above it, so holding the button to wind depth back down
+    // can't overshoot into a large negative value.
+    private func decrement(by step: Double, isHold: Bool = false) {
         switch selectedParameter {
-        case .depth: depth = max(0, depth - step)
+        case .depth:
+            if depth > 0 {
+                depth = max(0, depth - step)
+            } else if !isHold {
+                depth -= step
+            }
         case .left: left = max(0, left - step)
         case .right: right = max(0, right - step)
         case .up: up = max(0, up - step)
@@ -268,7 +283,7 @@ struct SaveDataView: View {
     private func startDecrementTimer() {
         stopDecrementTimer()
         decrementTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-            decrement(by: 10)
+            decrement(by: 10, isHold: true)
         }
         RunLoop.current.add(decrementTimer!, forMode: .common)
     }

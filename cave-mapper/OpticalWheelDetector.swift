@@ -21,6 +21,9 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     @Published var highBrightnessThreshold: Double = 0.6 // Normalized 0-1
     @Published var isCalibrating: Bool = false
     @Published var calibrationProgress: Double = 0.0
+    /// Outcome of the last calibration, for the settings screen.
+    @Published var calibrationMessage: String?
+    @Published var calibrationFailed: Bool = false
     @Published var flashlightEnabled: Bool = true
     @Published var flashlightBrightness: Float = 0.5 {  // 0.0 to 1.0 (0% to 100%)
         didSet {
@@ -44,6 +47,12 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     private let sessionQueue = DispatchQueue(label: "optical.wheel.detector")
     private var captureDevice: AVCaptureDevice?
     
+    // Threading: the capture queue only measures a frame's brightness. Everything
+    // that reads or writes detector state — thresholds, calibration, the rotation
+    // state machine, every @Published property — runs on the main thread. It used
+    // to be split across both with no synchronisation, and calibration published
+    // to SwiftUI from the capture queue.
+
     // Detection state
     private var isReadyForNewRotation = true
     private var brightnessHistory: [Double] = []
@@ -53,10 +62,27 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     private var calibrationSamples: [Double] = []
     private let calibrationDuration = 10.0  // seconds
     private var calibrationStartTime: Date?
-    
-    // Frame processing
-    private var lastProcessedTime: Date = Date()
-    private let minimumFrameInterval: TimeInterval = 0.05  // Process at most 20 fps
+    /// Auto-exposure meters the turning wheel for this long before it is locked;
+    /// only samples taken after the lock count towards the thresholds.
+    private let calibrationExposureSettleTime = 2.0
+    /// Below this dark-to-bright swing (normalised 0–1) the wheel was not turning
+    /// or the opening is not in view.
+    private let minCalibrationSwing = 0.1
+
+    // Exposure. Brightness thresholds only mean anything at the exposure they
+    // were calibrated under, so that exposure is stored with them and restored on
+    // every start. Detection restarts at every station; re-metering each time
+    // locked onto whatever the wheel happened to show at that moment.
+    private let exposureDurationKey = "opticalExposureDurationSeconds"
+    private let exposureISOKey = "opticalExposureISO"
+    /// Bumped on every exposure change so a pending delayed lock from an earlier
+    /// start cannot fire into a later one. Capture queue only.
+    private var exposureGeneration = 0
+
+    // Every frame is analysed (the old 20 fps cap could step right over the
+    // opening on a fast wheel); only the UI readout is rate-limited.
+    private var lastBrightnessPublishTime: TimeInterval = 0
+    private let brightnessPublishInterval: TimeInterval = 0.1
     
     // MARK: - Initialization
     override init() {
@@ -66,7 +92,11 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         if let savedBrightness = UserDefaults.standard.object(forKey: "opticalFlashlightBrightness") as? Float {
             self.flashlightBrightness = max(0.0, min(1.0, savedBrightness))  // Clamp to 0-1
         }
-        
+
+        // Calibrated thresholds were only loaded when the Settings screen opened,
+        // so after a relaunch detection ran on the 0.3/0.6 defaults until then.
+        loadSavedThresholds()
+
         setupCamera()
     }
     
@@ -166,7 +196,65 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Exposure Locking
+    // MARK: - Exposure (capture queue)
+
+    /// Restores the calibrated exposure, or — before the first calibration under
+    /// this scheme — meters for a second and locks, as older builds did.
+    private func applyExposurePolicy() {
+        exposureGeneration += 1
+        if applySavedExposure() { return }
+
+        setContinuousAutoExposure()
+        lockExposure(after: 1.0)
+    }
+
+    private func applySavedExposure() -> Bool {
+        let defaults = UserDefaults.standard
+        guard let device = captureDevice,
+              device.isExposureModeSupported(.custom),
+              let seconds = defaults.object(forKey: exposureDurationKey) as? Double,
+              let iso = defaults.object(forKey: exposureISOKey) as? Float,
+              seconds > 0, iso > 0 else { return false }
+
+        let format = device.activeFormat
+        let minSeconds = CMTimeGetSeconds(format.minExposureDuration)
+        let maxSeconds = CMTimeGetSeconds(format.maxExposureDuration)
+        let duration = CMTimeMakeWithSeconds(min(max(seconds, minSeconds), maxSeconds),
+                                             preferredTimescale: 1_000_000)
+        let clampedISO = min(max(iso, format.minISO), format.maxISO)
+
+        do {
+            try device.lockForConfiguration()
+            device.setExposureModeCustom(duration: duration, iso: clampedISO, completionHandler: nil)
+            device.unlockForConfiguration()
+            print("🔒 Restored calibrated exposure: \(seconds)s, ISO \(clampedISO)")
+            return true
+        } catch {
+            print("⚠️ Could not restore exposure: \(error)")
+            return false
+        }
+    }
+
+    private func setContinuousAutoExposure() {
+        guard let device = captureDevice,
+              device.isExposureModeSupported(.continuousAutoExposure) else { return }
+        do {
+            try device.lockForConfiguration()
+            device.exposureMode = .continuousAutoExposure
+            device.unlockForConfiguration()
+        } catch {
+            print("⚠️ Could not enable auto exposure: \(error)")
+        }
+    }
+
+    private func lockExposure(after delay: TimeInterval) {
+        let generation = exposureGeneration
+        sessionQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self = self, self.exposureGeneration == generation else { return }
+            self.lockExposure()
+        }
+    }
+
     private func lockExposure() {
         guard let device = captureDevice else { return }
         
@@ -212,10 +300,7 @@ class OpticalWheelDetector: NSObject, ObservableObject {
                 print("✅ Optical detection started, flashlight brightness: \(self.flashlightBrightness * 100)%")
             }
             
-            // Lock exposure after camera has had time to adjust (1 second delay)
-            self.sessionQueue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.lockExposure()
-            }
+            self.applyExposurePolicy()
         }
     }
     
@@ -231,6 +316,9 @@ class OpticalWheelDetector: NSObject, ObservableObject {
             
             DispatchQueue.main.async {
                 self.isRunning = false
+                // With no frames arriving a calibration could never finish, and
+                // rotation counting stays off for as long as it is "running".
+                self.cancelCalibration()
                 self.enableFlashlight(false)
                 print("✅ Optical detection stopped, flashlight disabled")
             }
@@ -241,7 +329,7 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         rotationCount = 0
     }
     
-    // MARK: - Calibration
+    // MARK: - Calibration (main thread)
     func startCalibration() {
         guard !isCalibrating else { return }
         
@@ -249,24 +337,51 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         calibrationSamples.removeAll()
         calibrationStartTime = Date()
         calibrationProgress = 0.0
+        calibrationMessage = nil
+        calibrationFailed = false
+
+        // Meter on the turning wheel, so the exposure is set by the average of
+        // blocked and open rather than by whichever one is in view, then lock it
+        // before any sample is taken.
+        let settle = calibrationExposureSettleTime
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.exposureGeneration += 1
+            self.setContinuousAutoExposure()
+            self.lockExposure(after: settle)
+        }
         
         print("🔦 Starting optical calibration - rotate the wheel steadily for \(Int(calibrationDuration))s")
     }
     
     func cancelCalibration() {
+        guard isCalibrating else { return }
         isCalibrating = false
         calibrationSamples.removeAll()
         calibrationStartTime = nil
         calibrationProgress = 0.0
+        restoreExposureAfterAbandonedCalibration()
+    }
+
+    /// The existing thresholds stay in force, so the exposure they belong to has
+    /// to come back too.
+    private func restoreExposureAfterAbandonedCalibration() {
+        sessionQueue.async { [weak self] in
+            self?.applyExposurePolicy()
+        }
     }
     
     private func updateCalibration(brightness: Double) {
         guard isCalibrating, let startTime = calibrationStartTime else { return }
         
-        calibrationSamples.append(brightness)
-        
         let elapsed = Date().timeIntervalSince(startTime)
         calibrationProgress = min(elapsed / calibrationDuration, 1.0)
+
+        // Exposure is still moving until the lock (plus a little slack for it to
+        // take effect); brightness measured before then is not comparable.
+        if elapsed >= calibrationExposureSettleTime + 0.3 {
+            calibrationSamples.append(brightness)
+        }
         
         if elapsed >= calibrationDuration {
             finishCalibration()
@@ -274,47 +389,60 @@ class OpticalWheelDetector: NSObject, ObservableObject {
     }
     
     private func finishCalibration() {
-        defer {
-            isCalibrating = false
-            calibrationStartTime = nil
-        }
+        isCalibrating = false
+        calibrationStartTime = nil
+        defer { calibrationSamples.removeAll() }
         
         guard calibrationSamples.count >= 50 else {
             print("⚠️ Not enough calibration samples: \(calibrationSamples.count)")
+            calibrationFailed = true
+            calibrationMessage = "Calibration failed: no camera frames. Thresholds unchanged."
+            restoreExposureAfterAbandonedCalibration()
             return
         }
         
         let sorted = calibrationSamples.sorted()
         
-        // Use percentiles to find thresholds
-        // P25: Lower brightness (wheel is blocking)
-        // P75: Higher brightness (wheel opening is visible)
-        let p25 = percentile(sorted, percent: 25)
-        let p75 = percentile(sorted, percent: 75)
-        
-        let range = p75 - p25
-        let margin = range * 0.15  // 15% margin
-        
-        // Set thresholds with hysteresis
-        lowBrightnessThreshold = p25 + margin
-        highBrightnessThreshold = p75 - margin
-        
-        // Ensure minimum separation
-        let minGap = 0.1
-        if highBrightnessThreshold - lowBrightnessThreshold < minGap {
-            let midpoint = (lowBrightnessThreshold + highBrightnessThreshold) / 2
-            lowBrightnessThreshold = midpoint - minGap / 2
-            highBrightnessThreshold = midpoint + minGap / 2
+        // Thresholds at 35 % and 65 % of the dark-to-bright swing. They used to
+        // be derived from the 25th/75th percentiles, which measure how long the
+        // wheel spends at each level: an opening narrower than a quarter turn put
+        // both percentiles on the blocked level and the thresholds in its noise.
+        // The 5th/95th percentiles stand in for min/max so a stray frame cannot
+        // set the scale.
+        let dark = percentile(sorted, percent: 5)
+        let bright = percentile(sorted, percent: 95)
+        let swing = bright - dark
+
+        guard swing >= minCalibrationSwing else {
+            print("⚠️ Optical calibration swing too small: \(swing)")
+            calibrationFailed = true
+            calibrationMessage = String(format: "Calibration failed: brightness only varied by %.2f. Keep the wheel turning and check the opening is in view. Thresholds unchanged.", swing)
+            restoreExposureAfterAbandonedCalibration()
+            return
         }
+
+        lowBrightnessThreshold = dark + 0.35 * swing
+        highBrightnessThreshold = dark + 0.65 * swing
         
         print("✅ Optical calibration complete")
         print("   Low threshold: \(String(format: "%.3f", lowBrightnessThreshold))")
         print("   High threshold: \(String(format: "%.3f", highBrightnessThreshold))")
-        print("   Range: \(String(format: "%.3f", range))")
+        print("   Swing: \(String(format: "%.3f", swing))")
         
-        // Save to UserDefaults
-        UserDefaults.standard.set(lowBrightnessThreshold, forKey: "opticalLowThreshold")
-        UserDefaults.standard.set(highBrightnessThreshold, forKey: "opticalHighThreshold")
+        // Save to UserDefaults, together with the exposure they were measured at.
+        let defaults = UserDefaults.standard
+        defaults.set(lowBrightnessThreshold, forKey: "opticalLowThreshold")
+        defaults.set(highBrightnessThreshold, forKey: "opticalHighThreshold")
+        if let device = captureDevice {
+            let seconds = CMTimeGetSeconds(device.exposureDuration)
+            if seconds.isFinite, seconds > 0, device.iso > 0 {
+                defaults.set(seconds, forKey: exposureDurationKey)
+                defaults.set(device.iso, forKey: exposureISOKey)
+            }
+        }
+
+        calibrationFailed = false
+        calibrationMessage = String(format: "Calibrated. Brightness swing %.2f.", swing)
     }
     
     private func percentile(_ sorted: [Double], percent: Double) -> Double {
@@ -455,7 +583,16 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         return averageBrightness / 255.0
     }
     
-    // MARK: - Rotation Detection
+    // MARK: - Rotation Detection (main thread)
+    private func handleBrightness(_ brightness: Double) {
+        let now = CACurrentMediaTime()
+        if now - lastBrightnessPublishTime >= brightnessPublishInterval {
+            currentBrightness = brightness
+            lastBrightnessPublishTime = now
+        }
+        detectRotation(brightness: brightness)
+    }
+
     private func detectRotation(brightness: Double) {
         // Add to history
         brightnessHistory.append(brightness)
@@ -472,11 +609,9 @@ class OpticalWheelDetector: NSObject, ObservableObject {
         // State machine: waiting for high -> detect low -> waiting for high
         if isReadyForNewRotation && brightness < lowBrightnessThreshold {
             // Wheel has blocked the light - rotation detected!
-            DispatchQueue.main.async { [weak self] in
-                self?.rotationCount += 1
-            }
+            rotationCount += 1
             isReadyForNewRotation = false
-            print("🔄 Rotation detected! Count: \(rotationCount + 1), Brightness: \(String(format: "%.3f", brightness))")
+            print("🔄 Rotation detected! Count: \(rotationCount), Brightness: \(String(format: "%.3f", brightness))")
         } else if !isReadyForNewRotation && brightness > highBrightnessThreshold {
             // Wheel opening is visible again - ready for next rotation
             isReadyForNewRotation = true
@@ -497,24 +632,15 @@ class OpticalWheelDetector: NSObject, ObservableObject {
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
 extension OpticalWheelDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        // Throttle frame processing
-        let now = Date()
-        guard now.timeIntervalSince(lastProcessedTime) >= minimumFrameInterval else {
-            return
-        }
-        lastProcessedTime = now
-        
-        // Analyze brightness
+        // Capture queue: measure only, then hand over to the main thread, which
+        // owns all detector state. Blocks run in order, so no frame is skipped or
+        // reordered even if the main thread is briefly busy.
         guard let brightness = analyzeBrightness(from: sampleBuffer) else {
             return
         }
         
-        // Update UI on main thread
         DispatchQueue.main.async { [weak self] in
-            self?.currentBrightness = brightness
+            self?.handleBrightness(brightness)
         }
-        
-        // Detect rotation
-        detectRotation(brightness: brightness)
     }
 }

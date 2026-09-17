@@ -19,6 +19,18 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     private let motionManager = CMMotionManager()
     private let locationManager = CLLocationManager()
     private let selectedAxisKey = "selectedAxis"
+    private let signedAxisKey = "axisThresholdsAreSigned"
+
+    /// Single-axis detection used to threshold `abs(axis)`. When the magnet swings
+    /// that axis through zero, the absolute value has two humps per revolution and
+    /// the wheel double counts. The signed value has exactly one cycle per
+    /// revolution whatever its polarity.
+    ///
+    /// Thresholds saved by an older build were calibrated against the absolute
+    /// value, so they keep that meaning until the next guided calibration, which
+    /// samples the signed signal and switches this on for good.
+    private var useSignedAxis: Bool
+    private var signedAxisBeforeCalibration: Bool?
 
     // MARK: - Published Properties
     @Published var highThreshold: Double = 1200 {
@@ -48,7 +60,7 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
     }
 
-    @Published var revolutions = DataManager.loadPointNumber()
+    @Published var revolutions = DataManager.loadRotationCount()
     @Published var isRunning = false
     @Published var currentField: CMMagneticField = CMMagneticField(x: 0, y: 0, z: 0)
     @Published var currentMagnitude: Double = 0.0
@@ -60,6 +72,13 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     // Guided calibration session
     @Published var isCalibrating: Bool = false
     @Published var calibrationSecondsRemaining: Int = 0
+    /// Outcome of the last guided calibration, for the settings screen.
+    @Published var calibrationMessage: String?
+    @Published var calibrationFailed: Bool = false
+
+    /// Below this peak-to-peak swing (µT) the samples are just sensor noise and
+    /// phone movement: the wheel was not turning, or the magnet is out of range.
+    private let minCalibrationSwing: Double = 20.0
 
     private var isReadyForNewPeak = true
     private var previousMagnitude: Double = 0.0
@@ -81,6 +100,10 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             self.lowThreshold = low
             self.highThreshold = high
             self.didCalibrate = true
+            self.useSignedAxis = defaults.bool(forKey: signedAxisKey)
+        } else {
+            // Nothing calibrated yet, so there is no legacy meaning to preserve.
+            self.useSignedAxis = true
         }
 
         if let data = defaults.data(forKey: selectedAxisKey),
@@ -159,15 +182,17 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         motionManager.stopMagnetometerUpdates()
         locationManager.stopUpdatingHeading()
         isRunning = false
-        stopCalibrationTimer()
+        // Not just the timer: left with isCalibrating == true and no timer to end
+        // it, peak detection would stay switched off for good.
+        cancelCalibration()
         print("✅ Magnetic monitoring stopped")
     }
 
     private func calculateMagnitude(_ field: CMMagneticField) -> Double {
         switch selectedAxis {
-        case .x: return abs(field.x)
-        case .y: return abs(field.y)
-        case .z: return abs(field.z)
+        case .x: return useSignedAxis ? field.x : abs(field.x)
+        case .y: return useSignedAxis ? field.y : abs(field.y)
+        case .z: return useSignedAxis ? field.z : abs(field.z)
         case .magnitude:
             return sqrt(field.x * field.x + field.y * field.y + field.z * field.z)
         }
@@ -185,17 +210,13 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
 
     // MARK: - Manual Calibrations
     func runManualCalibration() {
-        guard magneticFieldHistory.count >= 10 else { return }
-        let sorted = magneticFieldHistory.sorted()
-        
-        // Use percentiles for more robust calibration
-        let p30 = percentile(sorted, p: 30)  // Low threshold (baseline)
-        let p70 = percentile(sorted, p: 70)  // High threshold (peak zone)
-        
-        lowThreshold  = p30  // didSet will save automatically
-        highThreshold = p70  // didSet will save automatically
+        guard magneticFieldHistory.count >= 10,
+              let (low, high) = computeRobustThresholds(from: magneticFieldHistory) else { return }
+
+        lowThreshold  = low   // didSet will save automatically
+        highThreshold = high  // didSet will save automatically
         didCalibrate = true
-        
+
         print("📊 Quick calibration - Low: \(lowThreshold), High: \(highThreshold)")
     }
 
@@ -206,6 +227,11 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         isCalibrating = true
         calibrationSecondsRemaining = durationSeconds
         calibrationSamples.removeAll()
+        calibrationMessage = nil
+        calibrationFailed = false
+        // Sample the signed axis from here on; restored if this run is abandoned.
+        signedAxisBeforeCalibration = useSignedAxis
+        useSignedAxis = true
 
         stopCalibrationTimer()
         calibrationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] t in
@@ -225,6 +251,14 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         isCalibrating = false
         calibrationSamples.removeAll()
         calibrationSecondsRemaining = 0
+        restoreAxisModeAfterAbandonedCalibration()
+    }
+
+    private func restoreAxisModeAfterAbandonedCalibration() {
+        if let previous = signedAxisBeforeCalibration {
+            useSignedAxis = previous
+        }
+        signedAxisBeforeCalibration = nil
     }
 
     private func stopCalibrationTimer() {
@@ -241,48 +275,57 @@ class MagnetometerViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         guard calibrationSamples.count >= 100 else {
             // Not enough data; do not change thresholds
             print("⚠️ Not enough samples collected. Need at least 100, got \(calibrationSamples.count)")
+            restoreAxisModeAfterAbandonedCalibration()
+            calibrationFailed = true
+            calibrationMessage = "Calibration failed: no magnetometer data. Thresholds unchanged."
             return
         }
 
-        let (low, high) = computeRobustThresholds(from: calibrationSamples)
-        print("📊 Computed thresholds - Low: \(low), High: \(high)")
-
-        // Sanity clamp to avoid inverted or too-close thresholds
-        let minGap: Double = 20.0
-        let finalLow = low
-        var finalHigh = high
-        if finalHigh - finalLow < minGap {
-            finalHigh = finalLow + minGap
+        guard let (low, high) = computeRobustThresholds(from: calibrationSamples) else {
+            // The old code pressed on and planted both thresholds inside the
+            // noise, which counts phantom rotations from then on.
+            restoreAxisModeAfterAbandonedCalibration()
+            calibrationFailed = true
+            calibrationMessage = String(format: "Calibration failed: the signal varied by less than %.0f µT. Keep the wheel turning for the whole 10 s. Thresholds unchanged.", minCalibrationSwing)
+            return
         }
 
-        print("✅ Final thresholds - Low: \(finalLow), High: \(finalHigh)")
-        
-        self.lowThreshold = finalLow   // didSet will save automatically
-        self.highThreshold = finalHigh // didSet will save automatically
+        print("✅ Final thresholds - Low: \(low), High: \(high)")
+
+        self.lowThreshold = low    // didSet will save automatically
+        self.highThreshold = high  // didSet will save automatically
         self.didCalibrate = true
+
+        signedAxisBeforeCalibration = nil
+        UserDefaults.standard.set(true, forKey: signedAxisKey)
+
+        calibrationFailed = false
+        calibrationMessage = String(format: "Calibrated. Signal swing %.0f µT.", (high - low) / 0.3)
     }
 
-    // Robust stats: Use percentiles to find valley (baseline) and peak zones
-    private func computeRobustThresholds(from samples: [Double]) -> (low: Double, high: Double) {
+    /// Thresholds at 35 % and 65 % of the measured swing, or nil when there is no
+    /// usable swing.
+    ///
+    /// These used to be the 30th and 70th percentile of the samples, which places
+    /// them by how much *time* the signal spends at each level rather than by its
+    /// amplitude. A magnet that is only close for a short part of each turn puts
+    /// both percentiles inside the resting level, and the raw magnetometer's
+    /// resting level moves by tens of µT as the phone turns in the Earth's field
+    /// — enough to lift it over the low threshold, after which the detector
+    /// never re-arms and the count stops. Amplitude-based thresholds sit in the
+    /// middle of the swing with the widest margin to both the rest level and the
+    /// peak. The 2nd/98th percentiles stand in for min/max so a single spike
+    /// cannot set the scale.
+    private func computeRobustThresholds(from samples: [Double]) -> (low: Double, high: Double)? {
         let sorted = samples.sorted()
-        
-        // Find the baseline (valleys) and peak zones
-        let p10 = percentile(sorted, p: 10)  // Lower baseline
-        let p30 = percentile(sorted, p: 30)  // Upper baseline
-        let p70 = percentile(sorted, p: 70)  // Lower peak zone
-        let p90 = percentile(sorted, p: 90)  // Peak zone
-        
-        // Low threshold: Must drop below this to reset for next peak
-        // Set it in the baseline zone (between valleys and median)
-        let low = p30
-        
-        // High threshold: Must exceed this to trigger peak detection
-        // Set it in the upper region (above median, into peak zone)
-        let high = p70
-        
-        print("📈 Percentiles - P10: \(p10), P30: \(p30), P70: \(p70), P90: \(p90)")
+        let rest = percentile(sorted, p: 2)
+        let peak = percentile(sorted, p: 98)
+        let swing = peak - rest
 
-        return (low, high)
+        print("📈 Calibration - rest: \(rest), peak: \(peak), swing: \(swing)")
+
+        guard swing >= minCalibrationSwing else { return nil }
+        return (rest + 0.35 * swing, rest + 0.65 * swing)
     }
 
     private func percentile(_ sorted: [Double], p: Double) -> Double {

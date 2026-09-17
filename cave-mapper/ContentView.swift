@@ -13,6 +13,12 @@ struct ContentView: View {
         let magnetic = MagnetometerViewModel()
         let pca = PCAPhaseTrackingDetector()
         let optical = OpticalWheelDetector()
+        // Seed every detector with the persisted wheel count before anything
+        // observes them. Left at 0, the PCA and optical detectors publish that 0
+        // to the manager on launch, which briefly zeroes the odometer and logs a
+        // bogus distance-0 auto record mid-survey.
+        pca.revolutions = magnetic.revolutions
+        optical.rotationCount = magnetic.revolutions
         _magnetometer = StateObject(wrappedValue: magnetic)
         _pcaMagnetometer = StateObject(wrappedValue: pca)
         _opticalDetector = StateObject(wrappedValue: optical)
@@ -43,8 +49,9 @@ struct ContentView: View {
                             HStack {
                                 Text("Heading error: \(heading.headingAccuracy - 10, specifier: "%.2f")")
                                     .font(.largeTitle)
+                                // A negative accuracy means the heading is invalid, not excellent.
                                 Circle()
-                                    .fill(heading.headingAccuracy < 20 ? Color.green : Color.red)
+                                    .fill(heading.headingAccuracy >= 0 && heading.headingAccuracy < 20 ? Color.green : Color.red)
                                     .frame(width: 25, height: 25)
                             }
                         }
@@ -71,7 +78,8 @@ struct ContentView: View {
 
                     ZStack {
                         Button(action: {
-                            if let heading = headingManager.currentHeading, heading.headingAccuracy > 15 {
+                            if let heading = headingManager.currentHeading,
+                               heading.headingAccuracy < 0 || heading.headingAccuracy > 15 {
                                 showCalibrationToast = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                                     withAnimation {
@@ -193,8 +201,6 @@ struct ContentView: View {
                     }
                 }
                 .onChange(of: detectionManager.rotationCount) { _, _ in
-                    _ = DataManager.loadLastSavedDepth()
-
                     let savedData = SavedData(
                         recordNumber: pointNumber,
                         distance: detectionManager.roundedDistanceInMeters,
@@ -232,14 +238,6 @@ struct ContentView: View {
             .navigationDestination(isPresented: $navigateToSaveDataView) {
                 SaveDataView(headingManager: headingManager)
             }
-//            .fullScreenCover(isPresented: $showCameraView) {
-//                CameraView(
-//                    pointNumber: pointNumber,
-//                    distance: magnetometer.dynamicDistanceInMeters,
-//                    heading: magnetometer.currentHeading?.trueHeading ?? 0,
-//                    depth: 0.00
-//                )
-//            }
         }
     }
 
